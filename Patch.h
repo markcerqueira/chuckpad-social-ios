@@ -26,6 +26,9 @@
 
 - (NSString *)description;
 
+// Returns a full URL to the resource to download the patch
+- (NSString *)getResourceUrl;
+
 @end
 
 
