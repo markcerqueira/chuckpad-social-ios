@@ -15,6 +15,7 @@
     NSInteger _patchId;
     BOOL _isFeatured;
     BOOL _isDocumentation;
+    NSString *_creatorUsername;
     NSString *_contentType;
     NSString *_resourceUrl;
     NSString *_filename;
@@ -23,6 +24,7 @@
 @synthesize patchId = _patchId;
 @synthesize isFeatured = _isFeatured;
 @synthesize isDocumentation = _isDocumentation;
+@synthesize creatorUsername = _creatorUsername;
 @synthesize contentType = _contentType;
 @synthesize resourceUrl = _resourceUrl;
 @synthesize filename = _filename;
@@ -33,6 +35,7 @@
         self.name = dictionary[@"name"];
         self.isFeatured = [dictionary[@"featured"] boolValue];
         self.isDocumentation = [dictionary[@"documentation"] boolValue];
+        self.creatorUsername = dictionary[@"creator_username"];
         self.contentType = dictionary[@"content_type"];
         self.resourceUrl = dictionary[@"resource"];
         self.filename = dictionary[@"filename"];
