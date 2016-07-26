@@ -31,6 +31,7 @@ NSString *const GET_MY_PATCHES_URL = @"/patch/my";
 NSString *const GET_PATCHES_FOR_USER_URL = @"/patch/json/user";
 
 NSString *const CREATE_PATCH_URL = @"/patch/create_patch/";
+NSString *const UPDATE_PATCH_URL = @"/patch/update/";
 
 NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
 
@@ -83,7 +84,7 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
 
 // User API
 
-- (void)createUser:(NSString *)username withEmail:(NSString *)email withPassword:(NSString *)password withCallback:(CreateUserCallback)callback {
+- (void)createUser:(NSString *)username email:(NSString *)email password:(NSString *)password callback:(CreateUserCallback)callback {
     // If a user is already logged in, do not allow creating another user
     if ([self isLoggedIn]) {
         NSLog(@"createUser - a user is already logged in");
@@ -109,11 +110,11 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
                      }
                      failure:^(NSURLSessionDataTask *task, NSError *error) {
                          NSLog(@"createUser - error: %@", [error localizedDescription]);
-                         callback(false, nil);
+                         callback(false, [self errorFromServiceFailure:error]);
                      }];
 }
 
-- (void)logIn:(NSString*)usernameOrEmail withPassword:(NSString *)password withCallback:(CreateUserCallback)callback {
+- (void)logIn:(NSString *)usernameOrEmail password:(NSString *)password callback:(CreateUserCallback)callback {
     // If a user is already logged in, do not allow logging in as another user
     if ([self isLoggedIn]) {
         NSLog(@"logIn - a user is already logged in");
@@ -139,18 +140,18 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
                      }
                      failure:^(NSURLSessionDataTask *task, NSError *error) {
                          NSLog(@"logIn - error: %@", [error localizedDescription]);
-                         callback(false, nil);
+                         callback(false, [self errorFromServiceFailure:error]);
                      }];
 }
 
 - (void)authResponse:(id)responseObject withUsername:(NSString *)username withEmail:(NSString *)email withPassword:(NSString *)password withCallback:(CreateUserCallback)callback {
     int responseCode = [[responseObject objectForKey:@"code"] intValue];
     if (responseCode == 200) {
-        // If a valid creater user or login call, persist user credentials to keychain
+        // If a valid create user or login call, persist user credentials to keychain
         [self loginCompletedWithUsername:username withEmail:email withPassword:password];
         callback(true, nil);
     } else {
-        callback(false, nil);
+        callback(false, [self errorFromPreconditionChecks:@"Error hitting user API"]);
     }
 }
 
@@ -165,11 +166,11 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
     [[ChuckPadKeychain sharedInstance] clearCredentials];
 }
 
-- (void)changePassword:(NSString *)newPassword withCallback:(CreateUserCallback)callback {
+- (void)changePassword:(NSString *)newPassword callback:(CreateUserCallback)callback {
     // If not logged in, log an error and abort
     if (![self isLoggedIn]) {
         NSLog(@"changePassword - no user is currently logged in; aborting");
-        callback(false, [NSError errorWithDomain:@"No user is currently logged in" code:500 userInfo:nil]);
+        callback(false, [self errorBecauseNotLoggedIn]);
         return;
     }
 
@@ -197,7 +198,7 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
                      }
                      failure:^(NSURLSessionDataTask *task, NSError *error) {
                          NSLog(@"changedPassword - error: %@", [error localizedDescription]);
-                         callback(false, nil);
+                         callback(false, [self errorFromServiceFailure:error]);
                      }];
 }
 
@@ -227,15 +228,15 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
     // If the user is not logged in, fail now
     if (![self isLoggedIn]) {
         NSLog(@"getMyPatches - no user is currently logged in");
-        callback(false, [NSError errorWithDomain:@"No user is currently logged in" code:500 userInfo:nil]);
+        callback(false, [self errorBecauseNotLoggedIn]);
         return;
     }
 
     [self getPatchesInternal:GET_MY_PATCHES_URL withCallback:callback];
 }
 
-- (void)getPatchesForUserId:(NSInteger)userId withCallback:(GetPatchesCallback)callback {
-    [self getPatchesInternal:[NSString stringWithFormat:@"%@/%d", GET_PATCHES_FOR_USER_URL, userId] withCallback:callback];
+- (void)getPatchesForUserId:(NSInteger)userId callback:(GetPatchesCallback)callback {
+    [self getPatchesInternal:[NSString stringWithFormat:@"%@/%ld", GET_PATCHES_FOR_USER_URL, (long)userId] withCallback:callback];
 }
 
 - (void)getDocumentationPatches:(GetPatchesCallback)callback {
@@ -282,15 +283,76 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
                     }];
 }
 
+NSString *const PATCH_ID_PARAM_NAME = @"patch[id]";
 NSString *const FILE_DATA_PARAM_NAME = @"patch[data]";
+NSString *const PATCH_NAME_PARAM_NAME = @"patch[name]";
+NSString *const IS_HIDDEN_PARAM_NAME = @"patch[hidden]";
+
 NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
 
-- (void)uploadPatch:(NSString *)patchName filename:(NSString *)filename fileData:(NSData *)fileData callback:(CreatePatchCallback)callback {
-    [self uploadPatch:patchName isFeatured:NO isDocumentation:NO filename:filename fileData:fileData callback:callback];
+- (void)updatePatch:(Patch *)patch hidden:(NSNumber *)isHidden patchName:(NSString *)patchName filename:(NSString *)filename
+           fileData:(NSData *)fileData callback:(UpdatePatchCallback)callback {
+    // If the user is not logged in, fail now because not being logged in means you cannot update a patch
+    if (![self isLoggedIn]) {
+        NSLog(@"updatePatch - no user is currently logged in");
+        callback(false, nil, [self errorBecauseNotLoggedIn]);
+        return;
+    }
+
+    // Patch cannot be nil
+    if (patch == nil) {
+        NSLog(@"updatePatch - cannot update a nil patch");
+        callback(false, nil, [self errorFromPreconditionChecks:@"No patch given to update"]);
+        return;
+    }
+
+    NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@", baseUrl, UPDATE_PATCH_URL]];
+
+    NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
+
+    [requestParams setObject:[NSString stringWithFormat:@"%ld", (long)patch.patchId] forKey:PATCH_ID_PARAM_NAME];
+
+    if (isHidden != nil) {
+        [requestParams setObject:[NSString stringWithFormat:@"%d", [isHidden boolValue]] forKey:IS_HIDDEN_PARAM_NAME];
+    }
+
+    if (patchName != nil) {
+        [requestParams setObject:patchName forKey:PATCH_NAME_PARAM_NAME];
+    }
+
+    [self addCurrentUserParams:requestParams];
+
+    [httpSessionManager POST:url.absoluteString parameters:requestParams constructingBodyWithBlock:^(id <AFMultipartFormData> formData) {
+                if (fileData != nil && filename != nil) {
+                    [formData appendPartWithFileData:fileData
+                                                name:FILE_DATA_PARAM_NAME
+                                            fileName:filename
+                                            mimeType:FILE_DATA_MIME_TYPE];
+                }
+            }
+                    progress:nil success:^(NSURLSessionDataTask *task, id responseObject) {
+                NSLog(@"updatePatch - success: %@", responseObject);
+                callback(true, [self getPatchFromMessageResponse:responseObject], nil);
+            } failure:^(NSURLSessionDataTask *task, NSError *error) {
+                NSLog(@"updatePatch - error: %@", [error localizedDescription]);
+                callback(false, nil, [self errorFromServiceFailure:error]);
+            }];
+
 }
 
-- (void)uploadPatch:(NSString *)patchName isFeatured:(BOOL)isFeatured isDocumentation:(BOOL)isDocumentation
-           filename:(NSString *)filename fileData:(NSData *)fileData callback:(CreatePatchCallback)callback {
+- (NSError *)errorFromServiceFailure:(NSError *)error {
+    return [NSError errorWithDomain:[error localizedDescription] code:500 userInfo:nil];
+}
+
+- (NSError *)errorFromPreconditionChecks:(NSString *)errorString {
+    return [NSError errorWithDomain:errorString code:500 userInfo:nil];
+}
+
+- (NSError *)errorBecauseNotLoggedIn {
+    return [self errorFromPreconditionChecks:@"No user is currently logged in"];
+}
+
+- (void)uploadPatch:(NSString *)patchName filename:(NSString *)filename fileData:(NSData *)fileData callback:(CreatePatchCallback)callback {
     NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@", baseUrl, CREATE_PATCH_URL]];
 
     NSLog(@"uploadPatch - %@", url.absoluteString);
@@ -298,15 +360,7 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
 
     if (patchName != nil) {
-        [requestParams setObject:patchName forKey:@"patch[name]"];
-    }
-
-    if (isFeatured) {
-        [requestParams setObject:@"1" forKey:@"patch[featured]"];
-    }
-
-    if (isDocumentation) {
-        [requestParams setObject:@"1" forKey:@"patch[documentation]"];
+        [requestParams setObject:patchName forKey:PATCH_NAME_PARAM_NAME];
     }
 
     [self addCurrentUserParams:requestParams];
@@ -318,18 +372,19 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
                                 mimeType:FILE_DATA_MIME_TYPE];
             }
              progress:nil success:^(NSURLSessionDataTask *task, id responseObject) {
-                 NSLog(@"uploadPatch- success: %@", responseObject);
-                 
-                 // Need to convert the string in "message" to a JSON object
-                 NSData *data = [[responseObject objectForKey:@"message"] dataUsingEncoding:NSUTF8StringEncoding];
-                 id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
-                 
-                 Patch *patch = [[Patch alloc] initWithDictionary:json];
-                 callback(true, patch);
+                 NSLog(@"uploadPatch - success: %@", responseObject);
+                 callback(true, [self getPatchFromMessageResponse:responseObject], nil);
             } failure:^(NSURLSessionDataTask *task, NSError *error) {
                 NSLog(@"uploadPatch - error: %@", [error localizedDescription]);
-                callback(false, nil);
+                callback(false, nil, [self errorFromServiceFailure:error]);
             }];
+}
+
+- (Patch *)getPatchFromMessageResponse:(id)responseObject {
+    // Need to convert the string in "message" to a JSON object
+    NSData *data = [[responseObject objectForKey:@"message"] dataUsingEncoding:NSUTF8StringEncoding];
+    id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    return [[Patch alloc] initWithDictionary:json];
 }
 
 - (void)addCurrentUserParams:(NSMutableDictionary *)requestParams {

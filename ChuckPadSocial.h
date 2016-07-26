@@ -15,7 +15,9 @@ typedef void(^GetPatchesCallback)(NSArray *patchesArray, NSError *error);
 
 typedef void(^CreateUserCallback)(BOOL succeeded, NSError *error);
 
-typedef void(^CreatePatchCallback)(BOOL succeeded, Patch *patch);
+typedef void(^CreatePatchCallback)(BOOL succeeded, Patch *patch, NSError *error);
+
+typedef void(^UpdatePatchCallback)(BOOL succeeded, Patch *patch, NSError *error);
 
 @interface ChuckPadSocial : NSObject
 
@@ -37,12 +39,12 @@ typedef void(^CreatePatchCallback)(BOOL succeeded, Patch *patch);
 
 // Registers a new user with the provided parameters. If the callback is called with succeeded = true, the user is
 // considered logged in for subsequent API requests so no login call is needed.
-- (void)createUser:(NSString *)username withEmail:(NSString *)email withPassword:(NSString *)password
-      withCallback:(CreateUserCallback)callback;
+- (void)createUser:(NSString *)username email:(NSString *)email password:(NSString *)password
+          callback:(CreateUserCallback)callback;
 
 // Logs a user in. The usernameOrEmail parameter can be the email OR username. The API will use the parameter to match
 // against usernames and emails.
-- (void)logIn:(NSString *)usernameOrEmail withPassword:(NSString *)password withCallback:(CreateUserCallback)callback;
+- (void)logIn:(NSString *)usernameOrEmail password:(NSString *)password callback:(CreateUserCallback)callback;
 
 // De-authenticates a user from the ChuckPad service and clears their login information stored on the device.
 - (void)logOut;
@@ -52,18 +54,18 @@ typedef void(^CreatePatchCallback)(BOOL succeeded, Patch *patch);
 - (NSString *)getLoggedInUserName;
 
 // Changes the currently logged in user's password.
-- (void)changePassword:(NSString *)newPassword withCallback:(CreateUserCallback)callback;
+- (void)changePassword:(NSString *)newPassword callback:(CreateUserCallback)callback;
 
 // Returns YES if there is a user currently logged in.
 - (BOOL)isLoggedIn;
 
-// --- Patches API ---
+// --- Get Patches API ---
 
 // Returns all patches for the currently logged in user.
 - (void)getMyPatches:(GetPatchesCallback)callback;
 
 // Returns all patches for the specified user with given id.
-- (void)getPatchesForUserId:(NSInteger)userId withCallback:(GetPatchesCallback)callback;
+- (void)getPatchesForUserId:(NSInteger)userId callback:(GetPatchesCallback)callback;
 
 // Returns all patches flagged as documentation.
 - (void)getDocumentationPatches:(GetPatchesCallback)callback;
@@ -75,13 +77,20 @@ typedef void(^CreatePatchCallback)(BOOL succeeded, Patch *patch);
 // subset of all patches.
 - (void)getAllPatches:(GetPatchesCallback)callback;
 
-// Uploads a patch. Defaults featured, documentation flags to false.
+// --- Create/Modify Patches API ---
+
+// Update method for a patch that allows updating hidden state, patch name, filename, and patch data. One or all of
+// these can be set. If updating file data, both name and data parameters should be provided.
+//
+// Why is the hidden param a NSNumber instead of BOOL? Because Objective-C annoyingly enough does not have a Boolean
+// class that allows a boolean to nil. So pass nil to skip changing visibility, 0 to set not hidden, and 1 to set
+// hidden.
+- (void)updatePatch:(Patch *)patch hidden:(NSNumber *)isHidden patchName:(NSString *)patchName
+           filename:(NSString *)filename fileData:(NSData *)fileData callback:(UpdatePatchCallback)callback;
+
+// Creates a new patch.
 - (void)uploadPatch:(NSString *)patchName filename:(NSString *)filename fileData:(NSData *)fileData
            callback:(CreatePatchCallback)callback;
-
-// Uploads a patch and whether the patch is featured or documentation can be explicitly specified.
-- (void)uploadPatch:(NSString *)patchName isFeatured:(BOOL)isFeatured isDocumentation:(BOOL)isDocumentation
-           filename:(NSString *)filename fileData:(NSData *)fileData callback:(CreatePatchCallback)callback;
 
 @end
 
