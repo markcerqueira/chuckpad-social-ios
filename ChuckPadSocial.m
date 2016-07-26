@@ -105,7 +105,7 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
                          }
                      }
                      failure:^(NSURLSessionDataTask *task, NSError *error) {
-                         NSLog(@"createUser - error: %@", error.description);
+                         NSLog(@"createUser - error: %@", [error localizedDescription]);
                          callback(false, nil);
                      }];
 }
@@ -136,7 +136,7 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
                          }
                      }
                      failure:^(NSURLSessionDataTask *task, NSError *error) {
-                         NSLog(@"Error: %@", error);
+                         NSLog(@"Error: %@", [error localizedDescription]);
                          callback(false, nil);
                      }];
 }
@@ -176,7 +176,7 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
                          }
                      }
                      failure:^(NSURLSessionDataTask *task, NSError *error) {
-                         NSLog(@"Error: %@", error);
+                         NSLog(@"Error: %@", [error localizedDescription]);
                          callback(false, nil);
                      }];
 }
@@ -189,6 +189,14 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
 
 - (NSString *)getLoggedInUserName {
     return [[FXKeychain defaultKeychain] objectForKey:@"username"];
+}
+
+- (NSString *)getLoggedInPassword {
+    return [[FXKeychain defaultKeychain] objectForKey:@"password"];
+}
+
+- (NSString *)getLoggedInEmail {
+    return [[FXKeychain defaultKeychain] objectForKey:@"email"];
 }
 
 - (BOOL)isLoggedIn {
@@ -221,8 +229,7 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
 
     [httpSessionManager GET:url.absoluteString parameters:nil progress:nil
                     success:^(NSURLSessionTask *task, id responseObject) {
-                        int responseCode = [[responseObject objectForKey:@"code"] intValue];
-                        if (responseCode == 200) {
+                        if (responseObject != nil && [responseObject count] > 0) {
                             NSMutableArray *patchesArray = [[NSMutableArray alloc] init];
 
                             for (id object in responseObject) {
@@ -267,6 +274,10 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     if (isDocumentation) {
         [requestParams setObject:@"1" forKey:@"patch[documentation]"];
     }
+    
+    [requestParams setObject:[self getLoggedInUserName] forKey:@"username"];
+    [requestParams setObject:[self getLoggedInPassword] forKey:@"password"];
+    [requestParams setObject:[self getLoggedInEmail] forKey:@"email"];
 
     // TODO Callback
     [httpSessionManager POST:url.absoluteString parameters:requestParams constructingBodyWithBlock:^(id <AFMultipartFormData> formData) {
@@ -277,8 +288,9 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
             }
              progress:nil success:^(NSURLSessionDataTask *task, id responseObject) {
                 NSLog(@"Response: %@", responseObject);
+                // NSLog(@"Response: %@", responseObject);
             } failure:^(NSURLSessionDataTask *task, NSError *error) {
-                NSLog(@"Error: %@", error);
+                NSLog(@"Error: %@", [error localizedDescription]);
             }];
 }
 
