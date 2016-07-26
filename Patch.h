@@ -13,9 +13,11 @@
 
 @property(nonatomic, retain) NSString *name;
 @property(nonatomic, assign) NSInteger patchId;
+@property(nonatomic, assign) NSInteger creatorId;
 @property(nonatomic, retain) NSString *creatorUsername;
 @property(nonatomic, assign) BOOL isFeatured;
 @property(nonatomic, assign) BOOL isDocumentation;
+@property(nonatomic, assign) BOOL hidden;
 @property(nonatomic, retain) NSString *filename;
 @property(nonatomic, retain) NSString *contentType;
 @property(nonatomic, retain) NSString *resourceUrl;

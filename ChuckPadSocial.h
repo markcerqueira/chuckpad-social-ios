@@ -60,6 +60,12 @@ typedef void(^CreatePatchCallback)(BOOL succeeded, Patch *patch);
 
 // --- Patches API ---
 
+// Returns all patches for the currently logged in user.
+- (void)getMyPatches:(GetPatchesCallback)callback;
+
+// Returns all patches for the specified user with given id.
+- (void)getPatchesForUserId:(NSInteger)userId withCallback:(GetPatchesCallback)callback;
+
 // Returns all patches flagged as documentation.
 - (void)getDocumentationPatches:(GetPatchesCallback)callback;
 

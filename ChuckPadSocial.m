@@ -27,6 +27,8 @@ NSString *const CHANGE_PASSWORD_URL = @"/user/change_password";
 NSString *const GET_DOCUMENTATION_URL = @"/patch/json/documentation";
 NSString *const GET_FEATURED_URL = @"/patch/json/featured";
 NSString *const GET_ALL_URL = @"/patch/json/all";
+NSString *const GET_MY_PATCHES_URL = @"/patch/my";
+NSString *const GET_PATCHES_FOR_USER_URL = @"/patch/json/user";
 
 NSString *const CREATE_PATCH_URL = @"/patch/create_patch/";
 
@@ -221,6 +223,21 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
 
 // Patches API
 
+- (void)getMyPatches:(GetPatchesCallback)callback {
+    // If the user is not logged in, fail now
+    if (![self isLoggedIn]) {
+        NSLog(@"getMyPatches - no user is currently logged in");
+        callback(false, [NSError errorWithDomain:@"No user is currently logged in" code:500 userInfo:nil]);
+        return;
+    }
+
+    [self getPatchesInternal:GET_MY_PATCHES_URL withCallback:callback];
+}
+
+- (void)getPatchesForUserId:(NSInteger)userId withCallback:(GetPatchesCallback)callback {
+    [self getPatchesInternal:[NSString stringWithFormat:@"%@/%d", GET_PATCHES_FOR_USER_URL, userId] withCallback:callback];
+}
+
 - (void)getDocumentationPatches:(GetPatchesCallback)callback {
     [self getPatchesInternal:GET_DOCUMENTATION_URL withCallback:callback];
 }
@@ -238,7 +255,13 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
 
     NSLog(@"getPatchesInternal - %@", url.absoluteString);
 
-    [httpSessionManager GET:url.absoluteString parameters:nil progress:nil
+    // Add currentUser params because if a user has hidden patches in any category we want to return them to the user.
+    NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
+    if ([self isLoggedIn]) {
+        [self addCurrentUserParams:requestParams];
+    }
+
+    [httpSessionManager GET:url.absoluteString parameters:requestParams progress:nil
                     success:^(NSURLSessionTask *task, id responseObject) {
                         if (responseObject != nil && [responseObject count] > 0) {
                             NSMutableArray *patchesArray = [[NSMutableArray alloc] init];
@@ -285,10 +308,8 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     if (isDocumentation) {
         [requestParams setObject:@"1" forKey:@"patch[documentation]"];
     }
-    
-    [requestParams setObject:[self getLoggedInUserName] forKey:@"username"];
-    [requestParams setObject:[self getLoggedInPassword] forKey:@"password"];
-    [requestParams setObject:[self getLoggedInEmail] forKey:@"email"];
+
+    [self addCurrentUserParams:requestParams];
 
     [httpSessionManager POST:url.absoluteString parameters:requestParams constructingBodyWithBlock:^(id <AFMultipartFormData> formData) {
         [formData appendPartWithFileData:fileData
@@ -309,6 +330,12 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
                 NSLog(@"uploadPatch - error: %@", [error localizedDescription]);
                 callback(false, nil);
             }];
+}
+
+- (void)addCurrentUserParams:(NSMutableDictionary *)requestParams {
+    [requestParams setObject:[self getLoggedInUserName] forKey:@"username"];
+    [requestParams setObject:[self getLoggedInPassword] forKey:@"password"];
+    [requestParams setObject:[self getLoggedInEmail] forKey:@"email"];
 }
 
 @end
