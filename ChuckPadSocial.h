@@ -1,10 +1,8 @@
 //
 //  ChuckPadSocial.h
 //  chuckpad-social-ios
-//
-//  Created by Mark Cerqueira on 6/17/16.
-//
-//
+//  https://github.com/markcerqueira/chuckpad-social-ios
+// 
 
 #ifndef ChuckPadSocial_h
 #define ChuckPadSocial_h
@@ -39,7 +37,8 @@ typedef void(^CreatePatchCallback)(BOOL succeeded, Patch *patch);
 
 // Registers a new user with the provided parameters. If the callback is called with succeeded = true, the user is
 // considered logged in for subsequent API requests so no login call is needed.
-- (void)createUser:(NSString *)username withEmail:(NSString *)email withPassword:(NSString *)password withCallback:(CreateUserCallback)callback;
+- (void)createUser:(NSString *)username withEmail:(NSString *)email withPassword:(NSString *)password
+      withCallback:(CreateUserCallback)callback;
 
 // Logs a user in. The usernameOrEmail parameter can be the email OR username. The API will use the parameter to match
 // against usernames and emails.
@@ -77,7 +76,8 @@ typedef void(^CreatePatchCallback)(BOOL succeeded, Patch *patch);
 - (void)getAllPatches:(GetPatchesCallback)callback;
 
 // Uploads a patch. Defaults featured, documentation flags to false.
-- (void)uploadPatch:(NSString *)patchName filename:(NSString *)filename fileData:(NSData *)fileData callback:(CreatePatchCallback)callback;
+- (void)uploadPatch:(NSString *)patchName filename:(NSString *)filename fileData:(NSData *)fileData
+           callback:(CreatePatchCallback)callback;
 
 // Uploads a patch and whether the patch is featured or documentation can be explicitly specified.
 - (void)uploadPatch:(NSString *)patchName isFeatured:(BOOL)isFeatured isDocumentation:(BOOL)isDocumentation
