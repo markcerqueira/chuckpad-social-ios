@@ -21,6 +21,14 @@ typedef void(^UpdatePatchCallback)(BOOL succeeded, Patch *patch, NSError *error)
 
 typedef void(^DownloadPatchResourceCallback)(NSData *patchData, NSError *error);
 
+// Notification Constants
+
+// Posted when login (regular login and automatic login following registration) of a user is complete
+NSString *const CHUCKPAD_SOCIAL_LOG_IN = @"CHUCKPAD_SOCIAL_LOG_IN";
+
+// Sent when a user is logged out
+NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
+
 @interface ChuckPadSocial : NSObject
 
 // Returns the ChuckPadSocial singleton instance.

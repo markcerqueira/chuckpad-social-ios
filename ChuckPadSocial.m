@@ -158,7 +158,8 @@ NSString *const ERROR_STRING_ERROR_DOWNLOADING_PATCH_RESOURCE = @"There was an e
     // There is no API to log out. We just clear the credentials from the keychain which makes the user "logged out."
     [[ChuckPadKeychain sharedInstance] clearCredentials];
 
-    // TODO Send NSNotification
+    // Post notification so UI can update itself
+    [[NSNotificationCenter defaultCenter] postNotificationName:CHUCKPAD_SOCIAL_LOG_OUT object:nil userInfo:nil];
 }
 
 - (void)changePassword:(NSString *)newPassword callback:(CreateUserCallback)callback {
@@ -196,7 +197,8 @@ NSString *const ERROR_STRING_ERROR_DOWNLOADING_PATCH_RESOURCE = @"There was an e
 - (void)loginCompletedWithUsername:(NSString *)username withEmail:(NSString *)email withPassword:(NSString *)password {
     [[ChuckPadKeychain sharedInstance] authComplete:username withEmail:email withPassword:password];
 
-    // TODO Send NSNotification
+    // Post notification so UI can update itself
+    [[NSNotificationCenter defaultCenter] postNotificationName:CHUCKPAD_SOCIAL_LOG_IN object:nil userInfo:nil];
 }
 
 - (NSString *)getLoggedInUserName {
