@@ -283,6 +283,26 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
                     }];
 }
 
+- (void)downloadPatchResource:(Patch *)patch callback:(DownloadPatchResourceCallback)callback {
+    NSString *url = [NSString stringWithFormat:@"%@%@", [[ChuckPadSocial sharedInstance] getBaseUrl], patch.resourceUrl];
+
+    NSLog(@"downloadPatchResource - url = %@", url);
+
+    // TODO Use AFNetworking if I can figure out how to make it work easily
+    [[[NSURLSession sharedSession] dataTaskWithURL:[NSURL URLWithString:url] completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        int statusCode = -1;
+        if ([response isKindOfClass:[NSHTTPURLResponse class]])
+            statusCode = [(NSHTTPURLResponse *) response statusCode];
+
+        if (error == nil && (statusCode == 200 || statusCode == -1)) {
+            callback(data, nil);
+        }
+        else {
+            callback(nil, error);
+        }
+    }] resume];
+}
+
 NSString *const PATCH_ID_PARAM_NAME = @"patch[id]";
 NSString *const FILE_DATA_PARAM_NAME = @"patch[data]";
 NSString *const PATCH_NAME_PARAM_NAME = @"patch[name]";

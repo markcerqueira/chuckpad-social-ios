@@ -56,9 +56,4 @@
     return [NSString stringWithFormat:@"patchId = %ld; name = %@; documentation = %d, featured = %d", (long)self.patchId, self.name, self.isDocumentation, self.isFeatured];
 }
 
-- (NSString *)getResourceUrl {
-    return [NSString stringWithFormat:@"%@/%@", [[ChuckPadSocial sharedInstance] getBaseUrl], _resourceUrl];
-}
-
-
 @end
