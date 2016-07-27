@@ -20,9 +20,11 @@
     @private NSString *baseUrl;
 }
 
+// Host URLs
 NSString *const CHUCK_PAD_SOCIAL_BASE_URL = @"https://chuckpad-social.herokuapp.com";
 NSString *const CHUCK_PAD_SOCIAL_DEV_BASE_URL = @"http://localhost:9292";
 
+// API URLs
 NSString *const CREATE_USER_URL = @"/user/create_user";
 NSString *const LOGIN_USER_URL = @"/user/login";
 NSString *const CHANGE_PASSWORD_URL = @"/user/change_password";
@@ -36,12 +38,18 @@ NSString *const GET_PATCHES_FOR_USER_URL = @"/patch/json/user";
 NSString *const CREATE_PATCH_URL = @"/patch/create_patch/";
 NSString *const UPDATE_PATCH_URL = @"/patch/update/";
 
+// iOS User Agent Identifier
 NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
 
+// User-facing error strings
 NSString *const ERROR_STRING_LOGGED_IN_ALREADY = @"Someone is already logged in. Please log out and try again.";
 NSString *const ERROR_STRING_NO_USER_LOGGED_IN = @"No user is currently logged in. Please log in and try again.";
 NSString *const ERROR_STRING_ERROR_FETCHING_PATCHES = @"There was an error fetching the scripts. Please try again later.";
 NSString *const ERROR_STRING_ERROR_DOWNLOADING_PATCH_RESOURCE = @"There was an error downloading the script. Please try again later.";
+
+// NSNotification constants
+NSString *const CHUCKPAD_SOCIAL_LOG_IN = @"CHUCKPAD_SOCIAL_LOG_IN";
+NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
 
 + (ChuckPadSocial *)sharedInstance {
     static ChuckPadSocial *sharedInstance = nil;
