@@ -8,6 +8,7 @@
 #define ChuckPadSocial_h
 
 #import <objc/NSObject.h>
+#import <Foundation/Foundation.h>
 
 @class Patch;
 

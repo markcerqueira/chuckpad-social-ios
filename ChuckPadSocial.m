@@ -11,9 +11,11 @@
 //      3 - Failure block - The network call failed. The service may or may not have been reached properly.
 
 #import "ChuckPadSocial.h"
+
 #import "AFHTTPSessionManager.h"
-#import "Patch.h"
 #import "ChuckPadKeychain.h"
+#import "Patch.h"
+#import "PatchCache.h"
 
 @implementation ChuckPadSocial {
     @private AFHTTPSessionManager *httpSessionManager;
@@ -168,6 +170,9 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
 
     // Post notification so UI can update itself
     [[NSNotificationCenter defaultCenter] postNotificationName:CHUCKPAD_SOCIAL_LOG_OUT object:nil userInfo:nil];
+
+    // Flush the cache on user change events
+    [[PatchCache sharedInstance] removeAllObjects];
 }
 
 - (void)changePassword:(NSString *)newPassword callback:(CreateUserCallback)callback {
@@ -193,7 +198,7 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
                              [[ChuckPadKeychain sharedInstance] updatePassword:newPassword];
                              callback(true, nil);
                          } else {
-                             callback(false, [self getErrorMessageFromServiceReply:responseObject]);
+                             callback(false, [self errorWithErrorString:[self getErrorMessageFromServiceReply:responseObject]]);
                          }
                      }
                      failure:^(NSURLSessionDataTask *task, NSError *error) {
@@ -207,6 +212,9 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
 
     // Post notification so UI can update itself
     [[NSNotificationCenter defaultCenter] postNotificationName:CHUCKPAD_SOCIAL_LOG_IN object:nil userInfo:nil];
+
+    // Flush the cache on user change events
+    [[PatchCache sharedInstance] removeAllObjects];
 }
 
 - (NSString *)getLoggedInUserName {
@@ -259,6 +267,13 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
 
     NSLog(@"getPatchesInternal - url = %@", url.absoluteString);
 
+    NSArray *patchesArrayFromCache = [[PatchCache sharedInstance] objectForKey:url];
+    if (patchesArrayFromCache != nil && [patchesArrayFromCache count] > 0) {
+        NSLog(@"getPatchesInternal - using cached patches array");
+        callback(patchesArrayFromCache, nil);
+        return;
+    }
+
     // Add currentUser params because if a user has hidden patches in any category we want to return them to the user.
     NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
     if ([self isLoggedIn]) {
@@ -276,6 +291,9 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
 
                             NSLog(@"@getPatchesInternal - fetched %d patches", [patchesArray count]);
 
+                            // Save response to our cache in case we hit this API again soon
+                            [[PatchCache sharedInstance] setObject:patchesArray forKey:url];
+
                             callback(patchesArray, nil);
                         } else {
                             callback(nil, [self errorWithErrorString:ERROR_STRING_ERROR_FETCHING_PATCHES]);
@@ -292,6 +310,13 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
 
     NSLog(@"downloadPatchResource - url = %@", url);
 
+    NSData *patchDataFromCache = [[PatchCache sharedInstance] objectForKey:url];
+    if (patchDataFromCache != nil) {
+        NSLog(@"downloadPatchResource - using cached patch");
+        callback(patchDataFromCache, nil);
+        return;
+    }
+    
     // TODO Use AFNetworking if I can figure out how to make it work easily
     [[[NSURLSession sharedSession] dataTaskWithURL:[NSURL URLWithString:url] completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
         int statusCode = -1;
@@ -300,6 +325,8 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
         }
 
         if (error == nil && data != nil && (statusCode == 200 || statusCode == -1)) {
+            [[PatchCache sharedInstance] setObject:data forKey:url];
+            
             callback(data, nil);
         }
         else {
@@ -323,6 +350,9 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
         callback(false, nil, [self errorBecauseNotLoggedIn]);
         return;
     }
+    
+    // Flush cache for getting my patches
+    [[PatchCache sharedInstance] removeObjectForKey:GET_MY_PATCHES_URL];
 
     NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@", baseUrl, UPDATE_PATCH_URL]];
 
@@ -353,7 +383,7 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
         if ([self responseOk:responseObject]) {
             callback(true, [self getPatchFromMessageResponse:responseObject], nil);
         } else {
-            callback(false, nil, [self getErrorMessageFromServiceReply:responseObject]);
+            callback(false, nil, [self errorWithErrorString:[self getErrorMessageFromServiceReply:responseObject]]);
         }
     } failure:^(NSURLSessionDataTask *task, NSError *error) {
         NSLog(@"updatePatch - error: %@", [error localizedDescription]);
@@ -381,6 +411,9 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
 
     [self addCurrentUserParams:requestParams];
 
+    // Flush cache for getting my patches
+    [[PatchCache sharedInstance] removeObjectForKey:GET_MY_PATCHES_URL];
+
     [httpSessionManager POST:url.absoluteString parameters:requestParams constructingBodyWithBlock:^(id <AFMultipartFormData> formData) {
         [formData appendPartWithFileData:fileData
                                     name:FILE_DATA_PARAM_NAME
@@ -391,7 +424,7 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
         if ([self responseOk:responseObject]) {
             callback(true, [self getPatchFromMessageResponse:responseObject], nil);
         } else {
-            callback(false, nil, [self getErrorMessageFromServiceReply:responseObject]);
+            callback(false, nil, [self errorWithErrorString:[self getErrorMessageFromServiceReply:responseObject]]);
         }
     } failure:^(NSURLSessionDataTask *task, NSError *error) {
         NSLog(@"uploadPatch - error: %@", [error localizedDescription]);

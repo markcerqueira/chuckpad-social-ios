@@ -4,7 +4,8 @@
 
 #import "PatchCache.h"
 
-int const TIME_TO_LIVE = 3600;
+// Default cache TTL is 5 minutes
+int const TIME_TO_LIVE_SECONDS = 5 * 60;
 
 @implementation PatchCache {
     @private NSMutableDictionary *keyToExpireTimeDictionary;
@@ -27,7 +28,7 @@ int const TIME_TO_LIVE = 3600;
     return self;
 }
 
-- (id)objectForKey:(NSString *)key {
+- (id)objectForKey:(id)key {
     id obj = [super objectForKey:key];
     if (obj == nil) {
         return nil;
@@ -37,12 +38,12 @@ int const TIME_TO_LIVE = 3600;
         [self removeObjectForKey:key];
         return nil;
     }
-
+    
     return obj;
 }
 
 - (void)setObject:(id)obj forKey:(NSString *)key {
-    [self setObject:obj forKey:key expire:TIME_TO_LIVE];
+    [self setObject:obj forKey:key expire:TIME_TO_LIVE_SECONDS];
 }
 
 - (void)setObject:(id)obj forKey:(NSString *)key expire:(NSInteger)seconds {
@@ -50,7 +51,9 @@ int const TIME_TO_LIVE = 3600;
     [self updateExpireKey:key expire:seconds];
 }
 
-- (void)removeObjectForKey:(NSString *)key {
+- (void)removeObjectForKey:(id)key {
+    if ([key class])
+    
     [super removeObjectForKey:key];
     [keyToExpireTimeDictionary removeObjectForKey:key];
 }
@@ -61,12 +64,11 @@ int const TIME_TO_LIVE = 3600;
 }
 
 - (void)updateExpireKey:(NSString *)key expire:(NSInteger)seconds {
-    [keyToExpireTimeDictionary setObject:[NSNumber numberWithFloat:([[NSDate date] timeIntervalSince1970] + seconds)]forKey:key];
+    [keyToExpireTimeDictionary setObject:[NSDate dateWithTimeIntervalSinceNow:seconds] forKey:key];
 }
 
 - (BOOL)hasExpired:(NSString *)key {
-    NSDate *expireDate = [NSDate dateWithTimeIntervalSince1970:[[keyToExpireTimeDictionary objectForKey:key] doubleValue]];
-    return [expireDate timeIntervalSinceDate:[NSDate date]] > 0;
+    return [[NSDate date] timeIntervalSinceDate:[keyToExpireTimeDictionary objectForKey:key]] > 0;
 }
 
 @end
