@@ -1,12 +1,15 @@
 //
 //  ChuckPadSocial.m
 //  chuckpad-social-ios
-//
-//  Created by Mark Cerqueira on 6/17/16.
-//
+//  https://github.com/markcerqueira/chuckpad-social-ios
 //
 
-#import <Foundation/Foundation.h>
+//  For network calls there are normally two completion blocks for the actual network request but each network request
+//  ultimately falls into one of three categories:
+//      1 - Success block and response code from service is 200 -> Network call succeeded and service succeeded at handling request.
+//      2 - Success block and non-200 response code from service -> Network call succeeded, but the service failed to handle request.
+//      3 - Failure block - The network call failed. The service may or may not have been reached properly.
+
 #import "ChuckPadSocial.h"
 #import "AFHTTPSessionManager.h"
 #import "Patch.h"
@@ -34,6 +37,11 @@ NSString *const CREATE_PATCH_URL = @"/patch/create_patch/";
 NSString *const UPDATE_PATCH_URL = @"/patch/update/";
 
 NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
+
+NSString *const ERROR_STRING_LOGGED_IN_ALREADY = @"Someone is already logged in. Please log out and try again.";
+NSString *const ERROR_STRING_NO_USER_LOGGED_IN = @"No user is currently logged in. Please log in and try again.";
+NSString *const ERROR_STRING_ERROR_FETCHING_PATCHES = @"There was an error fetching the scripts. Please try again later.";
+NSString *const ERROR_STRING_ERROR_DOWNLOADING_PATCH_RESOURCE = @"There was an error downloading the script. Please try again later.";
 
 + (ChuckPadSocial *)sharedInstance {
     static ChuckPadSocial *sharedInstance = nil;
@@ -88,13 +96,13 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
     // If a user is already logged in, do not allow creating another user
     if ([self isLoggedIn]) {
         NSLog(@"createUser - a user is already logged in");
-        callback(false, [NSError errorWithDomain:@"A user is already logged in" code:500 userInfo:nil]);
+        callback(false, [self errorWithErrorString:ERROR_STRING_LOGGED_IN_ALREADY]);
         return;
     }
     
     NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@", baseUrl, CREATE_USER_URL]];
     
-    NSLog(@"createUser: %@", url.absoluteString);
+    NSLog(@"createUser - url = %@", url.absoluteString);
     
     NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
     [requestParams setObject:username forKey:@"user[username]"];
@@ -104,13 +112,11 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
     [httpSessionManager POST:url.absoluteString parameters:requestParams progress:nil
                      success:^(NSURLSessionDataTask *task, id responseObject) {
                          NSLog(@"createUser - response: %@", responseObject);
-
-                         // This will handle calling our callback
-                         [self authResponse:responseObject withUsername:username withEmail:email withPassword:password withCallback:callback];
+                         [self authResponse:responseObject withUsername:username withEmail:email withPassword:password callback:callback];
                      }
                      failure:^(NSURLSessionDataTask *task, NSError *error) {
                          NSLog(@"createUser - error: %@", [error localizedDescription]);
-                         callback(false, [self errorFromServiceFailure:error]);
+                         callback(false, [self errorMakingNetworkCall:error]);
                      }];
 }
 
@@ -118,13 +124,13 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
     // If a user is already logged in, do not allow logging in as another user
     if ([self isLoggedIn]) {
         NSLog(@"logIn - a user is already logged in");
-        callback(false, [NSError errorWithDomain:@"A user is already logged in" code:500 userInfo:nil]);
+        callback(false, [self errorWithErrorString:ERROR_STRING_LOGGED_IN_ALREADY]);
         return;
     }
     
     NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@", baseUrl, LOGIN_USER_URL]];
     
-    NSLog(@"logIn: %@", url.absoluteString);
+    NSLog(@"logIn - url = %@", url.absoluteString);
     
     NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
     [requestParams setObject:usernameOrEmail forKey:@"username_or_email"];
@@ -134,25 +140,12 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
     [httpSessionManager POST:url.absoluteString parameters:requestParams progress:nil
                      success:^(NSURLSessionDataTask *task, id responseObject) {
                          NSLog(@"logIn - response: %@", responseObject);
-
-                         // This will handle calling our callback
-                         [self authResponse:responseObject withUsername:usernameOrEmail withEmail:usernameOrEmail withPassword:password withCallback:callback];
+                         [self authResponse:responseObject withUsername:usernameOrEmail withEmail:usernameOrEmail withPassword:password callback:callback];
                      }
                      failure:^(NSURLSessionDataTask *task, NSError *error) {
                          NSLog(@"logIn - error: %@", [error localizedDescription]);
-                         callback(false, [self errorFromServiceFailure:error]);
+                         callback(false, [self errorMakingNetworkCall:error]);
                      }];
-}
-
-- (void)authResponse:(id)responseObject withUsername:(NSString *)username withEmail:(NSString *)email withPassword:(NSString *)password withCallback:(CreateUserCallback)callback {
-    int responseCode = [[responseObject objectForKey:@"code"] intValue];
-    if (responseCode == 200) {
-        // If a valid create user or login call, persist user credentials to keychain
-        [self loginCompletedWithUsername:username withEmail:email withPassword:password];
-        callback(true, nil);
-    } else {
-        callback(false, [self errorFromPreconditionChecks:@"Error hitting user API"]);
-    }
 }
 
 - (void)logOut {
@@ -164,19 +157,20 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
 
     // There is no API to log out. We just clear the credentials from the keychain which makes the user "logged out."
     [[ChuckPadKeychain sharedInstance] clearCredentials];
+
+    // TODO Send NSNotification
 }
 
 - (void)changePassword:(NSString *)newPassword callback:(CreateUserCallback)callback {
     // If not logged in, log an error and abort
     if (![self isLoggedIn]) {
-        NSLog(@"changePassword - no user is currently logged in; aborting");
         callback(false, [self errorBecauseNotLoggedIn]);
         return;
     }
 
     NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@", baseUrl, CHANGE_PASSWORD_URL]];
     
-    NSLog(@"changedPassword - %@", url.absoluteString);
+    NSLog(@"changedPassword - url = %@", url.absoluteString);
     
     NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
     [requestParams setObject:[self getLoggedInUserName] forKey:@"username_or_email"];
@@ -186,24 +180,23 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
     [httpSessionManager POST:url.absoluteString parameters:requestParams progress:nil
                      success:^(NSURLSessionDataTask *task, id responseObject) {
                          NSLog(@"changedPassword - success: %@", responseObject);
-                         
-                         int responseCode = [[responseObject objectForKey:@"code"] intValue];
-                         if (responseCode == 200) {
+                         if ([self responseOk:responseObject]) {
                              [[ChuckPadKeychain sharedInstance] updatePassword:newPassword];
-
                              callback(true, nil);
                          } else {
-                             callback(false, nil);
+                             callback(false, [self getErrorMessageFromServiceReply:responseObject]);
                          }
                      }
                      failure:^(NSURLSessionDataTask *task, NSError *error) {
                          NSLog(@"changedPassword - error: %@", [error localizedDescription]);
-                         callback(false, [self errorFromServiceFailure:error]);
+                         callback(false, [self errorMakingNetworkCall:error]);
                      }];
 }
 
 - (void)loginCompletedWithUsername:(NSString *)username withEmail:(NSString *)email withPassword:(NSString *)password {
     [[ChuckPadKeychain sharedInstance] authComplete:username withEmail:email withPassword:password];
+
+    // TODO Send NSNotification
 }
 
 - (NSString *)getLoggedInUserName {
@@ -254,7 +247,7 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
 - (void)getPatchesInternal:(NSString *)urlPath withCallback:(GetPatchesCallback)callback {
     NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@", baseUrl, urlPath]];
 
-    NSLog(@"getPatchesInternal - %@", url.absoluteString);
+    NSLog(@"getPatchesInternal - url = %@", url.absoluteString);
 
     // Add currentUser params because if a user has hidden patches in any category we want to return them to the user.
     NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
@@ -266,20 +259,21 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
                     success:^(NSURLSessionTask *task, id responseObject) {
                         if (responseObject != nil && [responseObject count] > 0) {
                             NSMutableArray *patchesArray = [[NSMutableArray alloc] init];
-
                             for (id object in responseObject) {
                                 Patch *patch = [[Patch alloc] initWithDictionary:object];
-                                // NSLog(@"Patch: %@", patch.description);
                                 [patchesArray addObject:patch];
                             }
 
+                            NSLog(@"@getPatchesInternal - fetched %d patches", [patchesArray count]);
+
                             callback(patchesArray, nil);
                         } else {
-                            callback(nil, nil);
+                            callback(nil, [self errorWithErrorString:ERROR_STRING_ERROR_FETCHING_PATCHES]);
                         }
                     }
                     failure:^(NSURLSessionTask *operation, NSError *error) {
-                        callback(nil, error);
+                        NSLog(@"getPatchesInternal - error: %@", [error localizedDescription]);
+                        callback(nil, [self errorMakingNetworkCall:error]);
                     }];
 }
 
@@ -291,14 +285,15 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
     // TODO Use AFNetworking if I can figure out how to make it work easily
     [[[NSURLSession sharedSession] dataTaskWithURL:[NSURL URLWithString:url] completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
         int statusCode = -1;
-        if ([response isKindOfClass:[NSHTTPURLResponse class]])
+        if ([response isKindOfClass:[NSHTTPURLResponse class]]) {
             statusCode = [(NSHTTPURLResponse *) response statusCode];
+        }
 
-        if (error == nil && (statusCode == 200 || statusCode == -1)) {
+        if (error == nil && data != nil && (statusCode == 200 || statusCode == -1)) {
             callback(data, nil);
         }
         else {
-            callback(nil, error);
+            callback(nil, [self errorWithErrorString:ERROR_STRING_ERROR_DOWNLOADING_PATCH_RESOURCE]);
         }
     }] resume];
 }
@@ -319,13 +314,6 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
         return;
     }
 
-    // Patch cannot be nil
-    if (patch == nil) {
-        NSLog(@"updatePatch - cannot update a nil patch");
-        callback(false, nil, [self errorFromPreconditionChecks:@"No patch given to update"]);
-        return;
-    }
-
     NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@", baseUrl, UPDATE_PATCH_URL]];
 
     NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
@@ -343,39 +331,37 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     [self addCurrentUserParams:requestParams];
 
     [httpSessionManager POST:url.absoluteString parameters:requestParams constructingBodyWithBlock:^(id <AFMultipartFormData> formData) {
-                if (fileData != nil && filename != nil) {
-                    [formData appendPartWithFileData:fileData
-                                                name:FILE_DATA_PARAM_NAME
-                                            fileName:filename
-                                            mimeType:FILE_DATA_MIME_TYPE];
-                }
-            }
-                    progress:nil success:^(NSURLSessionDataTask *task, id responseObject) {
-                NSLog(@"updatePatch - success: %@", responseObject);
-                callback(true, [self getPatchFromMessageResponse:responseObject], nil);
-            } failure:^(NSURLSessionDataTask *task, NSError *error) {
-                NSLog(@"updatePatch - error: %@", [error localizedDescription]);
-                callback(false, nil, [self errorFromServiceFailure:error]);
-            }];
-
-}
-
-- (NSError *)errorFromServiceFailure:(NSError *)error {
-    return [NSError errorWithDomain:[error localizedDescription] code:500 userInfo:nil];
-}
-
-- (NSError *)errorFromPreconditionChecks:(NSString *)errorString {
-    return [NSError errorWithDomain:errorString code:500 userInfo:nil];
-}
-
-- (NSError *)errorBecauseNotLoggedIn {
-    return [self errorFromPreconditionChecks:@"No user is currently logged in"];
+        if (fileData != nil && filename != nil) {
+            NSLog(@"updatePatch - appending form data");
+            [formData appendPartWithFileData:fileData
+                                        name:FILE_DATA_PARAM_NAME
+                                    fileName:filename
+                                    mimeType:FILE_DATA_MIME_TYPE];
+        }
+    } progress:nil success:^(NSURLSessionDataTask *task, id responseObject) {
+        NSLog(@"updatePatch - success: %@", responseObject);
+        if ([self responseOk:responseObject]) {
+            callback(true, [self getPatchFromMessageResponse:responseObject], nil);
+        } else {
+            callback(false, nil, [self getErrorMessageFromServiceReply:responseObject]);
+        }
+    } failure:^(NSURLSessionDataTask *task, NSError *error) {
+        NSLog(@"updatePatch - error: %@", [error localizedDescription]);
+        callback(false, nil, [self errorMakingNetworkCall:error]);
+    }];
 }
 
 - (void)uploadPatch:(NSString *)patchName filename:(NSString *)filename fileData:(NSData *)fileData callback:(CreatePatchCallback)callback {
+    // If the user is not logged in, fail now because not being logged in means you cannot update a patch
+    if (![self isLoggedIn]) {
+        NSLog(@"uploadPatch - no user is currently logged in");
+        callback(false, nil, [self errorBecauseNotLoggedIn]);
+        return;
+    }
+
     NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@", baseUrl, CREATE_PATCH_URL]];
 
-    NSLog(@"uploadPatch - %@", url.absoluteString);
+    NSLog(@"uploadPatch - url = %@", url.absoluteString);
     
     NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
 
@@ -390,14 +376,29 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
                                     name:FILE_DATA_PARAM_NAME
                                 fileName:filename
                                 mimeType:FILE_DATA_MIME_TYPE];
-            }
-             progress:nil success:^(NSURLSessionDataTask *task, id responseObject) {
-                 NSLog(@"uploadPatch - success: %@", responseObject);
-                 callback(true, [self getPatchFromMessageResponse:responseObject], nil);
-            } failure:^(NSURLSessionDataTask *task, NSError *error) {
-                NSLog(@"uploadPatch - error: %@", [error localizedDescription]);
-                callback(false, nil, [self errorFromServiceFailure:error]);
-            }];
+    } progress:nil success:^(NSURLSessionDataTask *task, id responseObject) {
+        NSLog(@"uploadPatch - success: %@", responseObject);
+        if ([self responseOk:responseObject]) {
+            callback(true, [self getPatchFromMessageResponse:responseObject], nil);
+        } else {
+            callback(false, nil, [self getErrorMessageFromServiceReply:responseObject]);
+        }
+    } failure:^(NSURLSessionDataTask *task, NSError *error) {
+        NSLog(@"uploadPatch - error: %@", [error localizedDescription]);
+        callback(false, nil, [self errorMakingNetworkCall:error]);
+    }];
+}
+
+// Private Helper Methods
+
+- (void)authResponse:(id)responseObject withUsername:(NSString *)username withEmail:(NSString *)email withPassword:(NSString *)password callback:(CreateUserCallback)callback {
+    if ([self responseOk:responseObject]) {
+        // If a valid create user or login call, persist user credentials to keychain
+        [self loginCompletedWithUsername:username withEmail:email withPassword:password];
+        callback(true, nil);
+    } else {
+        callback(false, [self errorWithErrorString:[self getErrorMessageFromServiceReply:responseObject]]);
+    }
 }
 
 - (Patch *)getPatchFromMessageResponse:(id)responseObject {
@@ -411,6 +412,28 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     [requestParams setObject:[self getLoggedInUserName] forKey:@"username"];
     [requestParams setObject:[self getLoggedInPassword] forKey:@"password"];
     [requestParams setObject:[self getLoggedInEmail] forKey:@"email"];
+}
+
+- (BOOL)responseOk:(id)responseObject {
+    return responseObject != nil && [[responseObject objectForKey:@"code"] intValue] == 200;
+}
+
+- (NSError *)errorMakingNetworkCall:(NSError *)error {
+    NSDictionary *details = [NSDictionary dictionaryWithObject:[error localizedDescription] forKey:NSLocalizedDescriptionKey];
+    return [NSError errorWithDomain:[error localizedDescription] code:500 userInfo:details];
+}
+
+- (NSError *)errorWithErrorString:(NSString *)errorString {
+    NSDictionary *details = [NSDictionary dictionaryWithObject:errorString forKey:NSLocalizedDescriptionKey];
+    return [NSError errorWithDomain:errorString code:500 userInfo:details];
+}
+
+- (NSError *)errorBecauseNotLoggedIn {
+    return [self errorWithErrorString:ERROR_STRING_NO_USER_LOGGED_IN];
+}
+
+- (NSString *)getErrorMessageFromServiceReply:(id)responseObject {
+    return [NSString stringWithUTF8String: [[responseObject objectForKey:@"message"] cStringUsingEncoding:NSUTF8StringEncoding]];
 }
 
 @end
