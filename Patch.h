@@ -12,7 +12,9 @@
 @interface Patch : NSObject
 
 @property(nonatomic, retain) NSString *name;
+@property(nonatomic, retain) NSString *patchDescription;
 @property(nonatomic, assign) NSInteger patchId;
+@property(nonatomic, assign) NSInteger parentPatchId;
 @property(nonatomic, assign) NSInteger creatorId;
 @property(nonatomic, retain) NSString *creatorUsername;
 @property(nonatomic, assign) BOOL isFeatured;
@@ -23,6 +25,8 @@
 @property(nonatomic, retain) NSString *resourceUrl;
 
 - (Patch *)initWithDictionary:(NSDictionary *)dictionary;
+
+- (BOOL)hasParentPatch;
 
 - (NSString *)description;
 

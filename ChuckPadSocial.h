@@ -93,18 +93,18 @@ extern NSString *const CHUCKPAD_SOCIAL_LOG_OUT;
 
 // --- Create/Modify Patches API ---
 
-// Update method for a patch that allows updating hidden state, patch name, filename, and patch data. One or all of
-// these can be set. If updating file data, both name and data parameters should be provided.
+// Update method for a patch that allows updating hidden state, patch name, description filename, and patch data. One or,
+// all of these can be set. If updating file data, both name and data parameters should be provided.
 //
 // Why is the hidden param a NSNumber instead of BOOL? Because Objective-C annoyingly enough does not have a Boolean
 // class that allows a boolean to nil. So pass nil to skip changing visibility, 0 to set not hidden, and 1 to set
 // hidden.
-- (void)updatePatch:(Patch *)patch hidden:(NSNumber *)isHidden patchName:(NSString *)patchName
+- (void)updatePatch:(Patch *)patch hidden:(NSNumber *)isHidden name:(NSString *)name description:(NSString *)description
            filename:(NSString *)filename fileData:(NSData *)fileData callback:(UpdatePatchCallback)callback;
 
 // Creates a new patch.
-- (void)uploadPatch:(NSString *)patchName filename:(NSString *)filename fileData:(NSData *)fileData
-           callback:(CreatePatchCallback)callback;
+- (void)uploadPatch:(NSString *)patchName description:(NSString *)description parent:(NSInteger)parentId
+           filename:(NSString *)filename fileData:(NSData *)fileData callback:(CreatePatchCallback)callback;
 
 @end
 

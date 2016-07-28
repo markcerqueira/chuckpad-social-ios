@@ -338,12 +338,14 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
 NSString *const PATCH_ID_PARAM_NAME = @"patch[id]";
 NSString *const FILE_DATA_PARAM_NAME = @"patch[data]";
 NSString *const PATCH_NAME_PARAM_NAME = @"patch[name]";
+NSString *const PATCH_DESCRIPTION_PARAM_NAME = @"patch[description]";
+NSString *const PATCH_PARENT_ID_PARAM_NAME = @"patch[parent_id]";
 NSString *const IS_HIDDEN_PARAM_NAME = @"patch[hidden]";
 
 NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
 
-- (void)updatePatch:(Patch *)patch hidden:(NSNumber *)isHidden patchName:(NSString *)patchName filename:(NSString *)filename
-           fileData:(NSData *)fileData callback:(UpdatePatchCallback)callback {
+- (void)updatePatch:(Patch *)patch hidden:(NSNumber *)isHidden name:(NSString *)name description:(NSString *)description
+           filename:(NSString *)filename fileData:(NSData *)fileData callback:(UpdatePatchCallback)callback {
     // If the user is not logged in, fail now because not being logged in means you cannot update a patch
     if (![self isLoggedIn]) {
         NSLog(@"updatePatch - no user is currently logged in");
@@ -364,8 +366,12 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
         [requestParams setObject:[NSString stringWithFormat:@"%d", [isHidden boolValue]] forKey:IS_HIDDEN_PARAM_NAME];
     }
 
-    if (patchName != nil) {
-        [requestParams setObject:patchName forKey:PATCH_NAME_PARAM_NAME];
+    if (name != nil) {
+        [requestParams setObject:name forKey:PATCH_NAME_PARAM_NAME];
+    }
+
+    if (description != nil) {
+        [requestParams setObject:description forKey:PATCH_DESCRIPTION_PARAM_NAME];
     }
 
     [self addCurrentUserParams:requestParams];
@@ -391,7 +397,8 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     }];
 }
 
-- (void)uploadPatch:(NSString *)patchName filename:(NSString *)filename fileData:(NSData *)fileData callback:(CreatePatchCallback)callback {
+- (void)uploadPatch:(NSString *)patchName description:(NSString *)description parent:(NSInteger)parentId
+           filename:(NSString *)filename fileData:(NSData *)fileData callback:(CreatePatchCallback)callback {
     // If the user is not logged in, fail now because not being logged in means you cannot update a patch
     if (![self isLoggedIn]) {
         NSLog(@"uploadPatch - no user is currently logged in");
@@ -407,6 +414,14 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
 
     if (patchName != nil) {
         [requestParams setObject:patchName forKey:PATCH_NAME_PARAM_NAME];
+    }
+
+    if (description != nil) {
+        [requestParams setObject:description forKey:PATCH_DESCRIPTION_PARAM_NAME];
+    }
+
+    if (parentId >= 0) {
+        [requestParams setObject:[NSNumber numberWithInt:parentId] forKey:PATCH_PARENT_ID_PARAM_NAME];
     }
 
     [self addCurrentUserParams:requestParams];

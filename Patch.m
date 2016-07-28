@@ -14,6 +14,9 @@
 
     @private
     NSInteger _patchId;
+    NSString *_name;
+    NSString *_patchDescription;
+    NSInteger _parentPatchId;
     BOOL _isFeatured;
     BOOL _isDocumentation;
     BOOL _hidden;
@@ -24,6 +27,9 @@
     NSString *_filename;
 }
 
+@synthesize name = _name;
+@synthesize patchDescription = _patchDescription;
+@synthesize parentPatchId = _parentPatchId;
 @synthesize patchId = _patchId;
 @synthesize isFeatured = _isFeatured;
 @synthesize isDocumentation = _isDocumentation;
@@ -38,6 +44,8 @@
     if (self = [super init]) {
         self.patchId = [dictionary[@"id"] integerValue];
         self.name = dictionary[@"name"];
+        self.patchDescription = dictionary[@"description"];
+        self.parentPatchId = [dictionary[@"parent_id"] integerValue];
         self.isFeatured = [dictionary[@"featured"] boolValue];
         self.isDocumentation = [dictionary[@"documentation"] boolValue];
         self.hidden = [dictionary[@"hidden"] boolValue];
@@ -46,10 +54,13 @@
         self.contentType = dictionary[@"content_type"];
         self.resourceUrl = dictionary[@"resource"];
         self.filename = dictionary[@"filename"];
-
     }
 
     return self;
+}
+
+- (BOOL)hasParentPatch {
+    return _parentPatchId != -1;
 }
 
 - (NSString *)description {
