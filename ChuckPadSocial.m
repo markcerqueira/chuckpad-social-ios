@@ -16,6 +16,7 @@
 #import "ChuckPadKeychain.h"
 #import "Patch.h"
 #import "PatchCache.h"
+#import "User.h"
 
 @implementation ChuckPadSocial {
     @private AFHTTPSessionManager *httpSessionManager;
@@ -143,14 +144,18 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
     NSLog(@"logIn - url = %@", url.absoluteString);
     
     NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
+    
+    // We don't know if the user entered a username or email so we'll send it up to the server as "both" and if we
+    // succeed in logging in, the server will let us know what the email and user name is.
     [requestParams setObject:usernameOrEmail forKey:@"username_or_email"];
+    
     [requestParams setObject:password forKey:@"password"];
 
-    // TODO Response from service should include username so the client is aware of what it is
     [httpSessionManager POST:url.absoluteString parameters:requestParams progress:nil
                      success:^(NSURLSessionDataTask *task, id responseObject) {
                          NSLog(@"logIn - response: %@", responseObject);
-                         [self authResponse:responseObject withUsername:usernameOrEmail withEmail:usernameOrEmail withPassword:password callback:callback];
+                         User *user = [self getUserFromMessageResponse:responseObject];
+                         [self authResponse:responseObject withUsername:user.username withEmail:user.email withPassword:password callback:callback];
                      }
                      failure:^(NSURLSessionDataTask *task, NSError *error) {
                          NSLog(@"logIn - error: %@", [error localizedDescription]);
@@ -459,8 +464,15 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     }
 }
 
+// Constructs a User object from the JSON in the "message" response body
+- (User *)getUserFromMessageResponse:(id)responseObject {
+    NSData *data = [[responseObject objectForKey:@"message"] dataUsingEncoding:NSUTF8StringEncoding];
+    id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    return [[User alloc] initWithDictionary:json];
+}
+
+// Constructs a Patch object from the JSON in the "message" response body
 - (Patch *)getPatchFromMessageResponse:(id)responseObject {
-    // Need to convert the string in "message" to a JSON object
     NSData *data = [[responseObject objectForKey:@"message"] dataUsingEncoding:NSUTF8StringEncoding];
     id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
     return [[Patch alloc] initWithDictionary:json];

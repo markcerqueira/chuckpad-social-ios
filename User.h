@@ -9,7 +9,6 @@
 #ifndef User_h
 #define User_h
 
-// TODO Use this or remove it
 @interface User : NSObject
 
 @property(nonatomic, assign) NSInteger userId;

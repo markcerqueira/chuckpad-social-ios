@@ -25,15 +25,17 @@
 
 - (User *)initWithDictionary:(NSDictionary *)dictionary {
     if (self = [super init]) {
-        // TODO
+        self.userId = [dictionary[@"id"] integerValue];
+        self.username = dictionary[@"username"];
+        self.email = dictionary[@"email"];
+        self.isAdmin = [dictionary[@"admin"] boolValue];
     }
     
     return self;
 }
 
 - (NSString *)description {
-    // TODO
-    return @"";
+    return [NSString stringWithFormat:@"userId = %d; username = %@; email = %@, isAdmin = %d", self.userId, self.username, self.email, self.isAdmin];
 }
 
 @end
