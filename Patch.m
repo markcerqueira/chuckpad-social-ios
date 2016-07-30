@@ -59,6 +59,23 @@
     return self;
 }
 
+- (NSDictionary *)asDictionary {
+    return @{
+             @"id": @(self.patchId),
+             @"name": self.name,
+             @"description": self.patchDescription,
+             @"parent_id": @(self.parentPatchId),
+             @"featured": @(self.isFeatured),
+             @"documentation": @(self.isDocumentation),
+             @"hidden": @(self.hidden),
+             @"creator_id": @(self.creatorId),
+             @"creator_username": self.creatorUsername,
+             @"content_type": self.contentType,
+             @"resource": self.resourceUrl,
+             @"filename": self.filename
+             };
+}
+
 - (BOOL)hasParentPatch {
     return _parentPatchId != -1;
 }
