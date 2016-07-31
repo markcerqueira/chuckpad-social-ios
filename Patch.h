@@ -25,6 +25,7 @@
 @property(nonatomic, retain) NSString *resourceUrl;
 
 - (Patch *)initWithDictionary:(NSDictionary *)dictionary;
+
 - (NSDictionary *)asDictionary;
 
 - (BOOL)hasParentPatch;

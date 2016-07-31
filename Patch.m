@@ -61,19 +61,19 @@
 
 - (NSDictionary *)asDictionary {
     return @{
-             @"id": @(self.patchId),
-             @"name": self.name,
-             @"description": self.patchDescription,
-             @"parent_id": @(self.parentPatchId),
-             @"featured": @(self.isFeatured),
-             @"documentation": @(self.isDocumentation),
-             @"hidden": @(self.hidden),
-             @"creator_id": @(self.creatorId),
-             @"creator_username": self.creatorUsername,
-             @"content_type": self.contentType,
-             @"resource": self.resourceUrl,
-             @"filename": self.filename
-             };
+            @"id" : @(self.patchId),
+            @"name" : self.name,
+            @"description" : self.patchDescription,
+            @"parent_id" : @(self.parentPatchId),
+            @"featured" : @(self.isFeatured),
+            @"documentation" : @(self.isDocumentation),
+            @"hidden" : @(self.hidden),
+            @"creator_id" : @(self.creatorId),
+            @"creator_username" : self.creatorUsername,
+            @"content_type" : self.contentType,
+            @"resource" : self.resourceUrl,
+            @"filename" : self.filename
+    };
 }
 
 - (BOOL)hasParentPatch {
@@ -82,6 +82,20 @@
 
 - (NSString *)description {
     return [NSString stringWithFormat:@"patchId = %ld; name = %@; documentation = %d, featured = %d", (long)self.patchId, self.name, self.isDocumentation, self.isFeatured];
+}
+
+- (BOOL)isEqual:(id)object {
+    if (![object isKindOfClass:self.class]) {
+        return NO;
+    }
+    
+    Patch *other = object;
+
+    return self.patchId == other.patchId && [self.name isEqualToString:other.name] && [self.patchDescription isEqualToString:other.patchDescription] &&
+            self.parentPatchId == other.parentPatchId && self.isFeatured == other.isFeatured && self.isDocumentation == other.isDocumentation &&
+            self.hidden == other.hidden && self.creatorId == other.creatorId && [self.creatorUsername isEqualToString:other.creatorUsername] &&
+            [self.contentType isEqualToString:other.contentType] && [self.resourceUrl isEqualToString:other.resourceUrl] &&
+            [self.filename isEqualToString:other.filename];
 }
 
 @end
