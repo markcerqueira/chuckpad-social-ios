@@ -47,7 +47,7 @@
         if([dictionary[@"description"] isKindOfClass:[NSString class]])
             self.patchDescription = dictionary[@"description"];
         else
-            self.patchDescription = @"";
+            self.patchDescription = nil;
         self.parentPatchId = [dictionary[@"parent_id"] integerValue];
         self.isFeatured = [dictionary[@"featured"] boolValue];
         self.isDocumentation = [dictionary[@"documentation"] boolValue];
