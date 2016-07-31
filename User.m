@@ -9,19 +9,7 @@
 #import <Foundation/Foundation.h>
 #import "User.h"
 
-@implementation User  {
-    
-@private
-    NSInteger _userId;
-    NSString *_username;
-    NSString *_email;
-    BOOL _isAdmin;
-}
-
-@synthesize userId = _userId;
-@synthesize username = _username;
-@synthesize email = _email;
-@synthesize isAdmin = _isAdmin;
+@implementation User
 
 - (User *)initWithDictionary:(NSDictionary *)dictionary {
     if (self = [super init]) {

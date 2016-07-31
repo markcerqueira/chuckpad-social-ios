@@ -21,8 +21,13 @@
 @property(nonatomic, assign) BOOL isDocumentation;
 @property(nonatomic, assign) BOOL hidden;
 @property(nonatomic, retain) NSString *filename;
-@property(nonatomic, retain) NSString *contentType;
 @property(nonatomic, retain) NSString *resourceUrl;
+
+// These times are in UTC
+@property(nonatomic, retain) NSDate *createdAt;
+@property(nonatomic, retain) NSDate *updatedAt;
+
+@property(nonatomic, assign) NSInteger downloadCount;
 
 - (Patch *)initWithDictionary:(NSDictionary *)dictionary;
 
