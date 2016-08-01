@@ -12,6 +12,8 @@
 
 @class Patch;
 
+// If the service returns 0 patches because 0 patches match the conditions (e.g. you request a user's patches but the
+// user has 0), the callback will return an NSArry of size 0 and a nil error.
 typedef void(^GetPatchesCallback)(NSArray *patchesArray, NSError *error);
 
 typedef void(^CreateUserCallback)(BOOL succeeded, NSError *error);
@@ -19,6 +21,8 @@ typedef void(^CreateUserCallback)(BOOL succeeded, NSError *error);
 typedef void(^CreatePatchCallback)(BOOL succeeded, Patch *patch, NSError *error);
 
 typedef void(^UpdatePatchCallback)(BOOL succeeded, Patch *patch, NSError *error);
+
+typedef void(^DeletePatchCallback)(BOOL succeeded, NSError *error);
 
 typedef void(^DownloadPatchResourceCallback)(NSData *patchData, NSError *error);
 
@@ -105,6 +109,9 @@ extern NSString *const CHUCKPAD_SOCIAL_LOG_OUT;
 // Creates a new patch.
 - (void)uploadPatch:(NSString *)patchName description:(NSString *)description parent:(NSInteger)parentId
            filename:(NSString *)filename fileData:(NSData *)fileData callback:(CreatePatchCallback)callback;
+
+// Deletes the given patch.
+- (void)deletePatch:(Patch *)patch callback:(DeletePatchCallback)callback;
 
 @end
 

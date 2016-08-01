@@ -51,9 +51,7 @@ int const TIME_TO_LIVE_SECONDS = 5 * 60;
     [self updateExpireKey:key expire:seconds];
 }
 
-- (void)removeObjectForKey:(id)key {
-    if ([key class])
-    
+- (void)removeObjectForKey:(id)key {    
     [super removeObjectForKey:key];
     [keyToExpireTimeDictionary removeObjectForKey:key];
 }

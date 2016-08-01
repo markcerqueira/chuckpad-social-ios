@@ -40,6 +40,7 @@ NSString *const GET_PATCHES_FOR_USER_URL = @"/patch/json/user";
 
 NSString *const CREATE_PATCH_URL = @"/patch/create_patch/";
 NSString *const UPDATE_PATCH_URL = @"/patch/update/";
+NSString *const DELETE_PATCH_URL = @"/patch/delete/";
 
 // iOS User Agent Identifier
 NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
@@ -191,9 +192,7 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
     
     NSLog(@"changedPassword - url = %@", url.absoluteString);
     
-    NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
-    [requestParams setObject:[self getLoggedInUserName] forKey:@"username_or_email"];
-    [requestParams setObject:[self getLoggedInPassword] forKey:@"password"];
+    NSMutableDictionary *requestParams = [self getCurrentUserAuthParamsDictionary];
     [requestParams setObject:newPassword forKey:@"new_password"];
     
     [httpSessionManager POST:url.absoluteString parameters:requestParams progress:nil
@@ -272,7 +271,7 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
 
     NSLog(@"getPatchesInternal - url = %@", url.absoluteString);
 
-    NSArray *patchesArrayFromCache = [[PatchCache sharedInstance] objectForKey:url];
+    NSArray *patchesArrayFromCache = [[PatchCache sharedInstance] objectForKey:urlPath];
     if (patchesArrayFromCache != nil && [patchesArrayFromCache count] > 0) {
         NSLog(@"getPatchesInternal - using cached patches array");
         callback(patchesArrayFromCache, nil);
@@ -280,14 +279,11 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
     }
 
     // Add currentUser params because if a user has hidden patches in any category we want to return them to the user.
-    NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
-    if ([self isLoggedIn]) {
-        [self addCurrentUserParams:requestParams];
-    }
+    NSMutableDictionary *requestParams = [self getCurrentUserAuthParamsDictionary];
 
     [httpSessionManager GET:url.absoluteString parameters:requestParams progress:nil
                     success:^(NSURLSessionTask *task, id responseObject) {
-                        if (responseObject != nil && [responseObject count] > 0) {
+                        if (responseObject != nil) {
                             NSMutableArray *patchesArray = [[NSMutableArray alloc] init];
                             for (id object in responseObject) {
                                 Patch *patch = [[Patch alloc] initWithDictionary:object];
@@ -297,7 +293,7 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
                             NSLog(@"@getPatchesInternal - fetched %d patches", [patchesArray count]);
 
                             // Save response to our cache in case we hit this API again soon
-                            [[PatchCache sharedInstance] setObject:patchesArray forKey:url];
+                            [[PatchCache sharedInstance] setObject:patchesArray forKey:urlPath];
 
                             callback(patchesArray, nil);
                         } else {
@@ -363,7 +359,7 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
 
     NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@", baseUrl, UPDATE_PATCH_URL]];
 
-    NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
+    NSMutableDictionary *requestParams = [self getCurrentUserAuthParamsDictionary];
 
     [requestParams setObject:[NSString stringWithFormat:@"%ld", (long)patch.patchId] forKey:PATCH_ID_PARAM_NAME];
 
@@ -378,8 +374,6 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     if (description != nil) {
         [requestParams setObject:description forKey:PATCH_DESCRIPTION_PARAM_NAME];
     }
-
-    [self addCurrentUserParams:requestParams];
 
     [httpSessionManager POST:url.absoluteString parameters:requestParams constructingBodyWithBlock:^(id <AFMultipartFormData> formData) {
         if (fileData != nil && filename != nil) {
@@ -415,7 +409,7 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
 
     NSLog(@"uploadPatch - url = %@", url.absoluteString);
     
-    NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
+    NSMutableDictionary *requestParams = [self getCurrentUserAuthParamsDictionary];
 
     if (patchName != nil) {
         [requestParams setObject:patchName forKey:PATCH_NAME_PARAM_NAME];
@@ -428,8 +422,6 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     if (parentId >= 0) {
         [requestParams setObject:[NSNumber numberWithInt:parentId] forKey:PATCH_PARENT_ID_PARAM_NAME];
     }
-
-    [self addCurrentUserParams:requestParams];
 
     // Flush cache for getting my patches
     [[PatchCache sharedInstance] removeObjectForKey:GET_MY_PATCHES_URL];
@@ -450,6 +442,36 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
         NSLog(@"uploadPatch - error: %@", [error localizedDescription]);
         callback(false, nil, [self errorMakingNetworkCall:error]);
     }];
+}
+
+- (void)deletePatch:(Patch *)patch callback:(DeletePatchCallback)callback {
+    // If the user is not logged in, fail now because not being logged in means you cannot delete a patch
+    if (![self isLoggedIn]) {
+        NSLog(@"deletePatch - no user is currently logged in");
+        callback(false, [self errorBecauseNotLoggedIn]);
+        return;
+    }
+    
+    NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@%d/", baseUrl, DELETE_PATCH_URL, patch.patchId]];
+    
+    NSLog(@"deletePatch - url = %@", url.absoluteString);
+ 
+    // Flush cache for getting my patches since we're about to delete one
+    [[PatchCache sharedInstance] removeObjectForKey:GET_MY_PATCHES_URL];
+    
+    [httpSessionManager GET:url.absoluteString parameters:[self getCurrentUserAuthParamsDictionary] progress:nil
+                    success:^(NSURLSessionTask *task, id responseObject) {
+                        NSLog(@"deletePatch - success: %@", responseObject);
+                        if ([self responseOk:responseObject]) {
+                            callback(YES, nil);
+                        } else {
+                            callback(NO, [self errorWithErrorString:[self getErrorMessageFromServiceReply:responseObject]]);
+                        }
+                    }
+                    failure:^(NSURLSessionTask *operation, NSError *error) {
+                        NSLog(@"deletePatch - error: %@", [error localizedDescription]);
+                        callback(NO, [self errorMakingNetworkCall:error]);
+                    }];
 }
 
 // Private Helper Methods
@@ -478,10 +500,16 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     return [[Patch alloc] initWithDictionary:json];
 }
 
-- (void)addCurrentUserParams:(NSMutableDictionary *)requestParams {
-    [requestParams setObject:[self getLoggedInUserName] forKey:@"username"];
-    [requestParams setObject:[self getLoggedInPassword] forKey:@"password"];
-    [requestParams setObject:[self getLoggedInEmail] forKey:@"email"];
+- (NSMutableDictionary *)getCurrentUserAuthParamsDictionary {
+    NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
+    
+    if ([self isLoggedIn]) {
+        [requestParams setObject:[self getLoggedInUserName] forKey:@"username"];
+        [requestParams setObject:[self getLoggedInPassword] forKey:@"password"];
+        [requestParams setObject:[self getLoggedInEmail] forKey:@"email"];
+    }
+    
+    return requestParams;
 }
 
 - (BOOL)responseOk:(id)responseObject {
