@@ -9,6 +9,7 @@
 #import <Foundation/Foundation.h>
 #import "Patch.h"
 #import "ChuckPadSocial.h"
+#import "NSDate+Helper.h"
 
 @implementation Patch
 
@@ -60,6 +61,20 @@ static NSDateFormatter *dateFormatter;
             @"updated_at" : [dateFormatter stringFromDate:self.updatedAt],
             @"download_count" : @(self.downloadCount)
     };
+}
+
+- (NSString *)getTimeLastUpdatedWithPrefix:(BOOL)prefix {
+    return [self getTime:self.updatedAt WithPrefix:prefix];
+}
+
+- (NSString *)getTimeCreatedWithPrefix:(BOOL)prefix {
+    return [self getTime:self.createdAt WithPrefix:prefix];
+}
+
+- (NSString *)getTime:(NSDate *)date WithPrefix:(BOOL)prefix {
+    NSTimeZone *tz = [NSTimeZone defaultTimeZone];
+    NSInteger seconds = [tz secondsFromGMTForDate:date];
+    return [NSDate stringForDisplayFromDate:[NSDate dateWithTimeInterval:seconds sinceDate:date] prefixed:prefix];
 }
 
 - (BOOL)hasParentPatch {
