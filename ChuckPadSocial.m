@@ -32,11 +32,11 @@ NSString *const CREATE_USER_URL = @"/user/create_user";
 NSString *const LOGIN_USER_URL = @"/user/login";
 NSString *const CHANGE_PASSWORD_URL = @"/user/change_password";
 
-NSString *const GET_DOCUMENTATION_URL = @"/patch/json/documentation";
-NSString *const GET_FEATURED_URL = @"/patch/json/featured";
-NSString *const GET_ALL_URL = @"/patch/json/all";
+NSString *const GET_DOCUMENTATION_URL = @"/patch/documentation";
+NSString *const GET_FEATURED_URL = @"/patch/featured";
+NSString *const GET_RECENT_URL = @"/patch/new";
 NSString *const GET_MY_PATCHES_URL = @"/patch/my";
-NSString *const GET_PATCHES_FOR_USER_URL = @"/patch/json/user";
+NSString *const GET_PATCHES_FOR_USER_URL = @"/patch/user";
 
 NSString *const CREATE_PATCH_URL = @"/patch/create_patch/";
 NSString *const UPDATE_PATCH_URL = @"/patch/update/";
@@ -262,8 +262,8 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
     [self getPatchesInternal:GET_FEATURED_URL withCallback:callback];
 }
 
-- (void)getAllPatches:(GetPatchesCallback)callback {
-    [self getPatchesInternal:GET_ALL_URL withCallback:callback];
+- (void)getRecentPatches:(GetPatchesCallback)callback {
+    [self getPatchesInternal:GET_RECENT_URL withCallback:callback];
 }
 
 - (void)getPatchesInternal:(NSString *)urlPath withCallback:(GetPatchesCallback)callback {

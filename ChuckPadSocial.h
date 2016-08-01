@@ -88,9 +88,8 @@ extern NSString *const CHUCKPAD_SOCIAL_LOG_OUT;
 // Returns all patches flagged as featured.
 - (void)getFeaturedPatches:(GetPatchesCallback)callback;
 
-// Returns all patches. Once the number of patches reaches a certain threshold this function may only return a (large)
-// subset of all patches.
-- (void)getAllPatches:(GetPatchesCallback)callback;
+// Returns recently created patches.
+- (void)getRecentPatches:(GetPatchesCallback)callback;
 
 // Downloads patch resource (i.e. the actual content of the file associated with the patch)
 - (void)downloadPatchResource:(Patch *)patch callback:(DownloadPatchResourceCallback)callback;
