@@ -34,6 +34,14 @@ extern NSString *const CHUCKPAD_SOCIAL_LOG_IN;
 // Sent when a user is logged out
 extern NSString *const CHUCKPAD_SOCIAL_LOG_OUT;
 
+typedef enum {
+    Production,
+    Stage,
+    Local
+} Environment;
+
+#define EnvironmentHostUrls @"https://chuckpad-social.herokuapp.com", @"https://chuckpad-social-stage.herokuapp.com", @"http://localhost:9292", nil
+
 @interface ChuckPadSocial : NSObject
 
 // Returns the ChuckPadSocial singleton instance.
@@ -44,11 +52,14 @@ extern NSString *const CHUCKPAD_SOCIAL_LOG_OUT;
 // Returns the root URL of the environment API calls will be made against.
 - (NSString *)getBaseUrl;
 
-// Toggles between the production environment and local debugging environment.
-- (void)toggleEnvironment;
+// Sets environment. Environment can be Production, Stage, or Local. Note that credentials are stored per environment
+// so if you log into Stage as User A, then switch to Production and log in as User B, and then switch back to Stage
+// you will remain logged in as User A. If this behavior is not desired, call logOut before switching environment.
+- (void)setEnvironment:(Environment)environment;
 
-// Sets the environment to use the local debugging environment running on localhost:9292.
-- (void)setEnvironmentToDebug;
+// Rotates through the environments as they are declared in the Environment enum. If called while enviroment is
+// Production the environment switches to Stage. If called on Local, the environment switches to Production.
+- (void)toggleEnvironment;
 
 // --- User API ---
 

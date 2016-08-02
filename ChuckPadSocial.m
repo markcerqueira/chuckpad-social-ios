@@ -21,11 +21,8 @@
 @implementation ChuckPadSocial {
     @private AFHTTPSessionManager *httpSessionManager;
     @private NSString *baseUrl;
+    @private NSArray *environmentUrls;
 }
-
-// Host URLs
-NSString *const CHUCK_PAD_SOCIAL_BASE_URL = @"https://chuckpad-social.herokuapp.com";
-NSString *const CHUCK_PAD_SOCIAL_DEV_BASE_URL = @"http://localhost:9292";
 
 // API URLs
 NSString *const CREATE_USER_URL = @"/user/create_user";
@@ -72,34 +69,29 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
     NSString *userAgent = [httpSessionManager.requestSerializer  valueForHTTPHeaderField:@"User-Agent"];
     userAgent = [userAgent stringByAppendingPathComponent:CHUCKPAD_SOCIAL_IOS_USER_AGENT];
     [httpSessionManager.requestSerializer setValue:userAgent forHTTPHeaderField:@"User-Agent"];
-    
-    if([[NSUserDefaults standardUserDefaults] boolForKey:@"debugEnvironment"]) {
-        baseUrl = CHUCK_PAD_SOCIAL_DEV_BASE_URL;
-    } else {
-        baseUrl = CHUCK_PAD_SOCIAL_BASE_URL;
-    }
+
+    environmentUrls = [[NSArray alloc] initWithObjects:EnvironmentHostUrls];
+    baseUrl = [environmentUrls objectAtIndex:[[NSUserDefaults standardUserDefaults] integerForKey:@"Environment"]];
 }
 
 - (NSString *)getBaseUrl {
     return baseUrl;
 }
 
-- (void)toggleEnvironment {
-    BOOL isDebugEnvironment;
-    if ([baseUrl isEqualToString:CHUCK_PAD_SOCIAL_BASE_URL]) {
-        baseUrl = CHUCK_PAD_SOCIAL_DEV_BASE_URL;
-        isDebugEnvironment = YES;
-    } else {
-        baseUrl = CHUCK_PAD_SOCIAL_BASE_URL;
-        isDebugEnvironment = NO;
-    }
-    
-    [[NSUserDefaults standardUserDefaults] setBool:isDebugEnvironment forKey:@"debugEnvironment"];
+- (void)setEnvironment:(Environment)environment {
+    baseUrl = [environmentUrls objectAtIndex:environment];
+    [[NSUserDefaults standardUserDefaults] setInteger:environment forKey:@"Environment"];
 }
 
-- (void)setEnvironmentToDebug {
-    baseUrl = CHUCK_PAD_SOCIAL_DEV_BASE_URL;
-    [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"debugEnvironment"];
+- (void)toggleEnvironment {
+    NSInteger currentEnviroment = [[NSUserDefaults standardUserDefaults] integerForKey:@"Environment"];
+    currentEnviroment++;
+    
+    if (currentEnviroment > 2) {
+        currentEnviroment = 0;
+    }
+    
+    [self setEnvironment:currentEnviroment];
 }
 
 // User API
