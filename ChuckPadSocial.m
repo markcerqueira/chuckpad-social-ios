@@ -71,7 +71,7 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
     [httpSessionManager.requestSerializer setValue:userAgent forHTTPHeaderField:@"User-Agent"];
 
     environmentUrls = [[NSArray alloc] initWithObjects:EnvironmentHostUrls];
-    baseUrl = [environmentUrls objectAtIndex:[[NSUserDefaults standardUserDefaults] integerForKey:@"Environment"]];
+    baseUrl = environmentUrls[[[NSUserDefaults standardUserDefaults] integerForKey:@"Environment"]];
 }
 
 - (NSString *)getBaseUrl {
@@ -79,7 +79,7 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
 }
 
 - (void)setEnvironment:(Environment)environment {
-    baseUrl = [environmentUrls objectAtIndex:environment];
+    baseUrl = environmentUrls[environment];
     [[NSUserDefaults standardUserDefaults] setInteger:environment forKey:@"Environment"];
 }
 
@@ -90,8 +90,8 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
     if (currentEnviroment > 2) {
         currentEnviroment = 0;
     }
-    
-    [self setEnvironment:currentEnviroment];
+
+    [self setEnvironment:(Environment) currentEnviroment];
 }
 
 // User API
@@ -109,9 +109,9 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
     NSLog(@"createUser - url = %@", url.absoluteString);
     
     NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
-    [requestParams setObject:username forKey:@"user[username]"];
-    [requestParams setObject:email forKey:@"user[email]"];
-    [requestParams setObject:password forKey:@"password"];
+    requestParams[@"user[username]"] = username;
+    requestParams[@"user[email]"] = email;
+    requestParams[@"password"] = password;
 
     [httpSessionManager POST:url.absoluteString parameters:requestParams progress:nil
                      success:^(NSURLSessionDataTask *task, id responseObject) {
@@ -140,9 +140,9 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
     
     // We don't know if the user entered a username or email so we'll send it up to the server as "both" and if we
     // succeed in logging in, the server will let us know what the email and user name is.
-    [requestParams setObject:usernameOrEmail forKey:@"username_or_email"];
+    requestParams[@"username_or_email"] = usernameOrEmail;
     
-    [requestParams setObject:password forKey:@"password"];
+    requestParams[@"password"] = password;
 
     [httpSessionManager POST:url.absoluteString parameters:requestParams progress:nil
                      success:^(NSURLSessionDataTask *task, id responseObject) {
@@ -185,7 +185,7 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
     NSLog(@"changedPassword - url = %@", url.absoluteString);
     
     NSMutableDictionary *requestParams = [self getCurrentUserAuthParamsDictionary];
-    [requestParams setObject:newPassword forKey:@"new_password"];
+    requestParams[@"new_password"] = newPassword;
     
     [httpSessionManager POST:url.absoluteString parameters:requestParams progress:nil
                      success:^(NSURLSessionDataTask *task, id responseObject) {
@@ -353,18 +353,18 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
 
     NSMutableDictionary *requestParams = [self getCurrentUserAuthParamsDictionary];
 
-    [requestParams setObject:[NSString stringWithFormat:@"%ld", (long)patch.patchId] forKey:PATCH_ID_PARAM_NAME];
+    requestParams[PATCH_ID_PARAM_NAME] = [NSString stringWithFormat:@"%ld", (long) patch.patchId];
 
     if (isHidden != nil) {
-        [requestParams setObject:[NSString stringWithFormat:@"%d", [isHidden boolValue]] forKey:IS_HIDDEN_PARAM_NAME];
+        requestParams[IS_HIDDEN_PARAM_NAME] = [NSString stringWithFormat:@"%d", [isHidden boolValue]];
     }
 
     if (name != nil) {
-        [requestParams setObject:name forKey:PATCH_NAME_PARAM_NAME];
+        requestParams[PATCH_NAME_PARAM_NAME] = name;
     }
 
     if (description != nil) {
-        [requestParams setObject:description forKey:PATCH_DESCRIPTION_PARAM_NAME];
+        requestParams[PATCH_DESCRIPTION_PARAM_NAME] = description;
     }
 
     [httpSessionManager POST:url.absoluteString parameters:requestParams constructingBodyWithBlock:^(id <AFMultipartFormData> formData) {
@@ -404,15 +404,15 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     NSMutableDictionary *requestParams = [self getCurrentUserAuthParamsDictionary];
 
     if (patchName != nil) {
-        [requestParams setObject:patchName forKey:PATCH_NAME_PARAM_NAME];
+        requestParams[PATCH_NAME_PARAM_NAME] = patchName;
     }
 
     if (description != nil) {
-        [requestParams setObject:description forKey:PATCH_DESCRIPTION_PARAM_NAME];
+        requestParams[PATCH_DESCRIPTION_PARAM_NAME] = description;
     }
 
     if (parentId >= 0) {
-        [requestParams setObject:[NSNumber numberWithInt:parentId] forKey:PATCH_PARENT_ID_PARAM_NAME];
+        requestParams[PATCH_PARENT_ID_PARAM_NAME] = @(parentId);
     }
 
     // Flush cache for getting my patches
@@ -496,31 +496,35 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
     
     if ([self isLoggedIn]) {
-        [requestParams setObject:[self getLoggedInUserName] forKey:@"username"];
-        [requestParams setObject:[self getLoggedInPassword] forKey:@"password"];
-        [requestParams setObject:[self getLoggedInEmail] forKey:@"email"];
+        requestParams[@"username"] = [self getLoggedInUserName];
+        requestParams[@"password"] = [self getLoggedInPassword];
+        requestParams[@"email"] = [self getLoggedInEmail];
     }
     
     return requestParams;
 }
 
 - (BOOL)responseOk:(id)responseObject {
-    if(responseObject == nil)
+    if(responseObject == nil) {
         return NO;
+    }
+
     if([responseObject respondsToSelector:@selector(objectForKey:)] &&
        [responseObject objectForKey:@"code"] != nil &&
-       [[responseObject objectForKey:@"code"] intValue] != 200)
+       [responseObject[@"code"] intValue] != 200) {
         return NO;
+    }
+
     return YES;
 }
 
 - (NSError *)errorMakingNetworkCall:(NSError *)error {
-    NSDictionary *details = [NSDictionary dictionaryWithObject:[error localizedDescription] forKey:NSLocalizedDescriptionKey];
+    NSDictionary *details = @{NSLocalizedDescriptionKey : [error localizedDescription]};
     return [NSError errorWithDomain:[error localizedDescription] code:500 userInfo:details];
 }
 
 - (NSError *)errorWithErrorString:(NSString *)errorString {
-    NSDictionary *details = [NSDictionary dictionaryWithObject:errorString forKey:NSLocalizedDescriptionKey];
+    NSDictionary *details = @{NSLocalizedDescriptionKey : errorString};
     return [NSError errorWithDomain:errorString code:500 userInfo:details];
 }
 

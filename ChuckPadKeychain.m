@@ -74,5 +74,4 @@
     return [NSString stringWithFormat:@"%@%@%d", string, [[ChuckPadSocial sharedInstance] getBaseUrl], [[NSUserDefaults standardUserDefaults] integerForKey:@"Environment"]];
 }
 
-
 @end
