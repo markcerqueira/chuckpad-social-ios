@@ -6,6 +6,7 @@
 
 #import <Foundation/Foundation.h>
 
+@class User;
 
 @interface ChuckPadKeychain : NSObject
 
@@ -15,7 +16,9 @@
 
 - (void)updatePassword:(NSString *)password;
 
-- (void)authComplete:(NSString *)username withEmail:(NSString *)email withPassword:(NSString *)password;
+- (void)authSucceededWithUser:(User *)user password:(NSString *)password;
+
+- (NSInteger)getLoggedInUserId;
 
 - (NSString *)getLoggedInUserName;
 

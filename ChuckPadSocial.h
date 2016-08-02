@@ -75,9 +75,14 @@ typedef enum {
 // De-authenticates a user from the ChuckPad service and clears their login information stored on the device.
 - (void)logOut;
 
-// Returns the username of the currently logged in user. Note this may be an email if the user chose to log in with
-// an email address.
+// Returns the user id (non-changing, permanent integer identifier) for the currently logged in user.
+- (NSInteger)getLoggedInUserId;
+
+// Returns the username of the currently logged in user.
 - (NSString *)getLoggedInUserName;
+
+// Returns the email address of the currently logged in user.
+- (NSString *)getLoggedInEmail;
 
 // Changes the currently logged in user's password.
 - (void)changePassword:(NSString *)newPassword callback:(CreateUserCallback)callback;

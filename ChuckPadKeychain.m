@@ -6,10 +6,9 @@
 
 #import "FXKeychain.h"
 #import "ChuckPadSocial.h"
+#import "User.h"
 
-@implementation ChuckPadKeychain {
-
-}
+@implementation ChuckPadKeychain
 
 + (ChuckPadKeychain *)sharedInstance {
     static ChuckPadKeychain *_instance = nil;
@@ -22,6 +21,7 @@
 }
 
 - (void)clearCredentials {
+    [[FXKeychain defaultKeychain] setObject:nil forKey:[self getUserIdKey]];
     [[FXKeychain defaultKeychain] setObject:nil forKey:[self getUsernameKey]];
     [[FXKeychain defaultKeychain] setObject:nil forKey:[self getEmailKey]];
     [[FXKeychain defaultKeychain] setObject:nil forKey:[self getPasswordKey]];
@@ -31,10 +31,15 @@
     [[FXKeychain defaultKeychain] setObject:password forKey:[self getPasswordKey]];
 }
 
-- (void)authComplete:(NSString *)username withEmail:(NSString *)email withPassword:(NSString *)password {
-    [[FXKeychain defaultKeychain] setObject:username forKey:[self getUsernameKey]];
-    [[FXKeychain defaultKeychain] setObject:email forKey:[self getEmailKey]];
+- (void)authSucceededWithUser:(User *)user password:(NSString *)password {
+    [[FXKeychain defaultKeychain] setObject:@(user.userId) forKey:[self getUserIdKey]];
+    [[FXKeychain defaultKeychain] setObject:user.username forKey:[self getUsernameKey]];
+    [[FXKeychain defaultKeychain] setObject:user.email forKey:[self getEmailKey]];
     [[FXKeychain defaultKeychain] setObject:password forKey:[self getPasswordKey]];
+}
+
+- (NSInteger)getLoggedInUserId {
+    return [[[FXKeychain defaultKeychain] objectForKey:[self getUserIdKey]] integerValue];
 }
 
 - (NSString *)getLoggedInUserName {
@@ -50,12 +55,16 @@
 }
 
 - (BOOL)isLoggedIn {
-    for (NSString *key in @[[self getUsernameKey], [self getEmailKey], [self getPasswordKey]]) {
+    for (NSString *key in @[[self getUserIdKey], [self getUsernameKey], [self getEmailKey], [self getPasswordKey]]) {
         if ([[FXKeychain defaultKeychain] objectForKey:key] == nil) {
             return NO;
         }
     }
     return YES;
+}
+
+- (NSString *)getUserIdKey {
+    return [self getKeyForString:@"userId"];
 }
 
 - (NSString *)getUsernameKey {

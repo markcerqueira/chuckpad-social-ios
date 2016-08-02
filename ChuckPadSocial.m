@@ -116,7 +116,7 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
     [httpSessionManager POST:url.absoluteString parameters:requestParams progress:nil
                      success:^(NSURLSessionDataTask *task, id responseObject) {
                          NSLog(@"createUser - response: %@", responseObject);
-                         [self authResponse:responseObject withUsername:username withEmail:email withPassword:password callback:callback];
+                         [self processAuthResponse:responseObject password:password callback:callback];
                      }
                      failure:^(NSURLSessionDataTask *task, NSError *error) {
                          NSLog(@"createUser - error: %@", [error localizedDescription]);
@@ -147,8 +147,7 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
     [httpSessionManager POST:url.absoluteString parameters:requestParams progress:nil
                      success:^(NSURLSessionDataTask *task, id responseObject) {
                          NSLog(@"logIn - response: %@", responseObject);
-                         User *user = [self getUserFromMessageResponse:responseObject];
-                         [self authResponse:responseObject withUsername:user.username withEmail:user.email withPassword:password callback:callback];
+                         [self processAuthResponse:responseObject password:password callback:callback];
                      }
                      failure:^(NSURLSessionDataTask *task, NSError *error) {
                          NSLog(@"logIn - error: %@", [error localizedDescription]);
@@ -203,8 +202,8 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
                      }];
 }
 
-- (void)loginCompletedWithUsername:(NSString *)username withEmail:(NSString *)email withPassword:(NSString *)password {
-    [[ChuckPadKeychain sharedInstance] authComplete:username withEmail:email withPassword:password];
+- (void)authSucceededWithUser:(User *)user password:(NSString *)password {
+    [[ChuckPadKeychain sharedInstance] authSucceededWithUser:user password:password];
 
     // Post notification so UI can update itself
     [[NSNotificationCenter defaultCenter] postNotificationName:CHUCKPAD_SOCIAL_LOG_IN object:nil userInfo:nil];
@@ -223,6 +222,10 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
 
 - (NSString *)getLoggedInEmail {
     return [[ChuckPadKeychain sharedInstance] getLoggedInEmail];
+}
+
+- (NSInteger)getLoggedInUserId {
+    return [[ChuckPadKeychain sharedInstance] getLoggedInUserId];
 }
 
 - (BOOL)isLoggedIn {
@@ -468,10 +471,10 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
 
 // Private Helper Methods
 
-- (void)authResponse:(id)responseObject withUsername:(NSString *)username withEmail:(NSString *)email withPassword:(NSString *)password callback:(CreateUserCallback)callback {
+- (void)processAuthResponse:(id)responseObject password:(NSString *)password callback:(CreateUserCallback)callback {
     if ([self responseOk:responseObject]) {
         // If a valid create user or login call, persist user credentials to keychain
-        [self loginCompletedWithUsername:username withEmail:email withPassword:password];
+        [self authSucceededWithUser:[self getUserFromMessageResponse:responseObject] password:password];
         callback(true, nil);
     } else {
         callback(false, [self errorWithErrorString:[self getErrorMessageFromServiceReply:responseObject]]);
