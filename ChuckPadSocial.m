@@ -283,7 +283,7 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
 
     [httpSessionManager GET:url.absoluteString parameters:requestParams progress:nil
                     success:^(NSURLSessionTask *task, id responseObject) {
-                        if (responseObject != nil) {
+                        if ([self responseOk:responseObject]) {
                             NSMutableArray *patchesArray = [[NSMutableArray alloc] init];
                             for (id object in responseObject) {
                                 Patch *patch = [[Patch alloc] initWithDictionary:object];
@@ -513,7 +513,13 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
 }
 
 - (BOOL)responseOk:(id)responseObject {
-    return responseObject != nil && [[responseObject objectForKey:@"code"] intValue] == 200;
+    if(responseObject == nil)
+        return NO;
+    if([responseObject respondsToSelector:@selector(objectForKey:)] &&
+       [responseObject objectForKey:@"code"] != nil &&
+       [[responseObject objectForKey:@"code"] intValue] != 200)
+        return NO;
+    return YES;
 }
 
 - (NSError *)errorMakingNetworkCall:(NSError *)error {
