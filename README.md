@@ -10,7 +10,7 @@ iOS library that interacts with the [chuckpad-social][1] service.
 ### Related Repositories
 * [hello-chuckpad][2] is a "Hello, World" project that uses this library with a suite of unit tests to verify the interactions between this iOS library and the server. 
 * [chuckpad-social][1] is the server that this client-side library interacts with. 
-* [miniAudicle][5] will be the first "go-to market" product that uses the chuckpad-social service and this library. 
+* [miniAudicle][5] will be the first product in the iOS App Store that uses the chuckpad-social service and this library. 
 
 ### Libraries Used
 * [FXKeychain][3]
