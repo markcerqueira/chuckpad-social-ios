@@ -279,8 +279,9 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
     [httpSessionManager GET:url.absoluteString parameters:requestParams progress:nil
                     success:^(NSURLSessionTask *task, id responseObject) {
                         if ([self responseOk:responseObject]) {
+                            NSArray *responseObjectArray = [self getPatchArrayFromMessageResponse:responseObject];
                             NSMutableArray *patchesArray = [[NSMutableArray alloc] init];
-                            for (id object in responseObject) {
+                            for (id object in responseObjectArray) {
                                 Patch *patch = [[Patch alloc] initWithDictionary:object];
                                 [patchesArray addObject:patch];
                             }
@@ -493,6 +494,11 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     NSData *data = [[responseObject objectForKey:@"message"] dataUsingEncoding:NSUTF8StringEncoding];
     id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
     return [[Patch alloc] initWithDictionary:json];
+}
+
+- (NSArray *)getPatchArrayFromMessageResponse:(id)responseObject {
+    NSData* data = [[responseObject objectForKey:@"message"] dataUsingEncoding:NSUTF8StringEncoding];
+    return [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingMutableContainers error:nil];
 }
 
 - (NSMutableDictionary *)getCurrentUserAuthParamsDictionary {
