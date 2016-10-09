@@ -15,6 +15,7 @@
 @property(nonatomic, retain) NSString *username;
 @property(nonatomic, retain) NSString *email;
 @property(nonatomic, assign) BOOL isAdmin;
+@property(nonatomic, retain) NSString *authToken;
 
 - (User *)initWithDictionary:(NSDictionary *)dictionary;
 

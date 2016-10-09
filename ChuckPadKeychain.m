@@ -20,43 +20,43 @@
     return _instance;
 }
 
+- (FXKeychain *)keychain {
+    return [FXKeychain defaultKeychain];
+}
+
 - (void)clearCredentials {
-    [[FXKeychain defaultKeychain] setObject:nil forKey:[self getUserIdKey]];
-    [[FXKeychain defaultKeychain] setObject:nil forKey:[self getUsernameKey]];
-    [[FXKeychain defaultKeychain] setObject:nil forKey:[self getEmailKey]];
-    [[FXKeychain defaultKeychain] setObject:nil forKey:[self getPasswordKey]];
+    [[self keychain] setObject:nil forKey:[self getUserIdKey]];
+    [[self keychain] setObject:nil forKey:[self getUsernameKey]];
+    [[self keychain] setObject:nil forKey:[self getEmailKey]];
+    [[self keychain] setObject:nil forKey:[self getAuthTokenKey]];
 }
 
-- (void)updatePassword:(NSString *)password {
-    [[FXKeychain defaultKeychain] setObject:password forKey:[self getPasswordKey]];
-}
-
-- (void)authSucceededWithUser:(User *)user password:(NSString *)password {
-    [[FXKeychain defaultKeychain] setObject:@(user.userId) forKey:[self getUserIdKey]];
-    [[FXKeychain defaultKeychain] setObject:user.username forKey:[self getUsernameKey]];
-    [[FXKeychain defaultKeychain] setObject:user.email forKey:[self getEmailKey]];
-    [[FXKeychain defaultKeychain] setObject:password forKey:[self getPasswordKey]];
+- (void)authSucceededWithUser:(User *)user {
+    [[self keychain] setObject:@(user.userId) forKey:[self getUserIdKey]];
+    [[self keychain] setObject:user.username forKey:[self getUsernameKey]];
+    [[self keychain] setObject:user.email forKey:[self getEmailKey]];
+    [[self keychain] setObject:user.authToken forKey:[self getAuthTokenKey]];
 }
 
 - (NSInteger)getLoggedInUserId {
-    return [[[FXKeychain defaultKeychain] objectForKey:[self getUserIdKey]] integerValue];
+    return [[[self keychain] objectForKey:[self getUserIdKey]] integerValue];
 }
 
 - (NSString *)getLoggedInUserName {
-    return [[FXKeychain defaultKeychain] objectForKey:[self getUsernameKey]];
-}
-
-- (NSString *)getLoggedInPassword {
-    return [[FXKeychain defaultKeychain] objectForKey:[self getPasswordKey]];
+    return [[self keychain] objectForKey:[self getUsernameKey]];
 }
 
 - (NSString *)getLoggedInEmail {
-    return [[FXKeychain defaultKeychain] objectForKey:[self getEmailKey]];
+    return [[self keychain] objectForKey:[self getEmailKey]];
+}
+
+- (NSString *)getLoggedInAuthToken {
+    return [[self keychain] objectForKey:[self getAuthTokenKey]];
 }
 
 - (BOOL)isLoggedIn {
-    for (NSString *key in @[[self getUserIdKey], [self getUsernameKey], [self getEmailKey], [self getPasswordKey]]) {
-        if ([[FXKeychain defaultKeychain] objectForKey:key] == nil) {
+    for (NSString *key in @[[self getUserIdKey], [self getUsernameKey], [self getEmailKey], [self getAuthTokenKey]]) {
+        if ([[self keychain] objectForKey:key] == nil) {
             return NO;
         }
     }
@@ -75,12 +75,12 @@
     return [self getKeyForString:@"email"];
 }
 
-- (NSString *)getPasswordKey {
-    return [self getKeyForString:@"password"];
+- (NSString *)getAuthTokenKey {
+    return [self getKeyForString:@"authToken"];
 }
 
 - (NSString *)getKeyForString:(NSString *)string {
-    return [NSString stringWithFormat:@"%@%@%d", string, [[ChuckPadSocial sharedInstance] getBaseUrl], [[NSUserDefaults standardUserDefaults] integerForKey:@"Environment"]];
+    return [NSString stringWithFormat:@"%@_%@_%ld", string, [[ChuckPadSocial sharedInstance] getBaseUrl], (long)[[NSUserDefaults standardUserDefaults] integerForKey:@"Environment"]];
 }
 
 @end

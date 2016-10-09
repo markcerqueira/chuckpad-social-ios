@@ -14,9 +14,7 @@
 
 - (void)clearCredentials;
 
-- (void)updatePassword:(NSString *)password;
-
-- (void)authSucceededWithUser:(User *)user password:(NSString *)password;
+- (void)authSucceededWithUser:(User *)user;
 
 - (NSInteger)getLoggedInUserId;
 
@@ -24,7 +22,7 @@
 
 - (NSString *)getLoggedInEmail;
 
-- (NSString *)getLoggedInPassword;
+- (NSString *)getLoggedInAuthToken;
 
 - (BOOL)isLoggedIn;
 

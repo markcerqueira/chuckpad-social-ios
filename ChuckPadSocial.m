@@ -116,7 +116,7 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
     [httpSessionManager POST:url.absoluteString parameters:requestParams progress:nil
                      success:^(NSURLSessionDataTask *task, id responseObject) {
                          NSLog(@"createUser - response: %@", responseObject);
-                         [self processAuthResponse:responseObject password:password callback:callback];
+                         [self processAuthResponse:responseObject callback:callback];
                      }
                      failure:^(NSURLSessionDataTask *task, NSError *error) {
                          NSLog(@"createUser - error: %@", [error localizedDescription]);
@@ -147,7 +147,7 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
     [httpSessionManager POST:url.absoluteString parameters:requestParams progress:nil
                      success:^(NSURLSessionDataTask *task, id responseObject) {
                          NSLog(@"logIn - response: %@", responseObject);
-                         [self processAuthResponse:responseObject password:password callback:callback];
+                         [self processAuthResponse:responseObject callback:callback];
                      }
                      failure:^(NSURLSessionDataTask *task, NSError *error) {
                          NSLog(@"logIn - error: %@", [error localizedDescription]);
@@ -190,7 +190,7 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
                      success:^(NSURLSessionDataTask *task, id responseObject) {
                          NSLog(@"changedPassword - success: %@", responseObject);
                          if ([self responseOk:responseObject]) {
-                             [[ChuckPadKeychain sharedInstance] updatePassword:newPassword];
+                             // No need to do anything besides notifying caller because our auth token is still valid.
                              callback(true, nil);
                          } else {
                              callback(false, [self errorWithErrorString:[self getErrorMessageFromServiceReply:responseObject]]);
@@ -202,8 +202,8 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
                      }];
 }
 
-- (void)authSucceededWithUser:(User *)user password:(NSString *)password {
-    [[ChuckPadKeychain sharedInstance] authSucceededWithUser:user password:password];
+- (void)authSucceededWithUser:(User *)user {
+    [[ChuckPadKeychain sharedInstance] authSucceededWithUser:user];
 
     // Post notification so UI can update itself
     [[NSNotificationCenter defaultCenter] postNotificationName:CHUCKPAD_SOCIAL_LOG_IN object:nil userInfo:nil];
@@ -216,16 +216,16 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
     return [[ChuckPadKeychain sharedInstance] getLoggedInUserName];
 }
 
-- (NSString *)getLoggedInPassword {
-    return [[ChuckPadKeychain sharedInstance] getLoggedInPassword];
-}
-
 - (NSString *)getLoggedInEmail {
     return [[ChuckPadKeychain sharedInstance] getLoggedInEmail];
 }
 
 - (NSInteger)getLoggedInUserId {
     return [[ChuckPadKeychain sharedInstance] getLoggedInUserId];
+}
+
+- (NSString *)getLoggedInAuthToken {
+    return [[ChuckPadKeychain sharedInstance] getLoggedInAuthToken];
 }
 
 - (BOOL)isLoggedIn {
@@ -279,8 +279,8 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
     [httpSessionManager GET:url.absoluteString parameters:requestParams progress:nil
                     success:^(NSURLSessionTask *task, id responseObject) {
                         if ([self responseOk:responseObject]) {
-                            NSMutableArray *patchesArray = [[NSMutableArray alloc] init];
-                            for (id object in responseObject) {
+                            NSMutableArray *patchesArray = [[NSMutableArray alloc] init];                            
+                            for (id object in [self getPatchListFromMessageResponse:responseObject]) {
                                 Patch *patch = [[Patch alloc] initWithDictionary:object];
                                 [patchesArray addObject:patch];
                             }
@@ -471,10 +471,10 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
 
 // Private Helper Methods
 
-- (void)processAuthResponse:(id)responseObject password:(NSString *)password callback:(CreateUserCallback)callback {
+- (void)processAuthResponse:(id)responseObject callback:(CreateUserCallback)callback {
     if ([self responseOk:responseObject]) {
         // If a valid create user or login call, persist user credentials to keychain
-        [self authSucceededWithUser:[self getUserFromMessageResponse:responseObject] password:password];
+        [self authSucceededWithUser:[self getUserFromMessageResponse:responseObject]];
         callback(true, nil);
     } else {
         callback(false, [self errorWithErrorString:[self getErrorMessageFromServiceReply:responseObject]]);
@@ -483,9 +483,7 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
 
 // Constructs a User object from the JSON in the "message" response body
 - (User *)getUserFromMessageResponse:(id)responseObject {
-    NSData *data = [[responseObject objectForKey:@"message"] dataUsingEncoding:NSUTF8StringEncoding];
-    id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
-    return [[User alloc] initWithDictionary:json];
+    return [[User alloc] initWithDictionary:[responseObject objectForKey:@"message"]];
 }
 
 // Constructs a Patch object from the JSON in the "message" response body
@@ -495,12 +493,19 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     return [[Patch alloc] initWithDictionary:json];
 }
 
+// Returns a list of JSON blobs contained in the "message" response body
+- (NSArray *)getPatchListFromMessageResponse:(id)responseObject {
+    NSData *data = [[responseObject objectForKey:@"message"] dataUsingEncoding:NSUTF8StringEncoding];
+    NSArray *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    return json;
+}
+
 - (NSMutableDictionary *)getCurrentUserAuthParamsDictionary {
     NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
     
     if ([self isLoggedIn]) {
-        requestParams[@"username"] = [self getLoggedInUserName];
-        requestParams[@"password"] = [self getLoggedInPassword];
+        requestParams[@"user_id"] = @([self getLoggedInUserId]);
+        requestParams[@"auth_token"] = [self getLoggedInAuthToken];
         requestParams[@"email"] = [self getLoggedInEmail];
     }
     
