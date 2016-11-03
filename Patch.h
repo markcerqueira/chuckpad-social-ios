@@ -17,6 +17,7 @@
 @property(nonatomic, assign) NSInteger parentPatchId;
 @property(nonatomic, assign) NSInteger creatorId;
 @property(nonatomic, retain) NSString *creatorUsername;
+@property(nonatomic, assign) NSInteger abuseReportCount;
 @property(nonatomic, assign) BOOL isFeatured;
 @property(nonatomic, assign) BOOL isDocumentation;
 @property(nonatomic, assign) BOOL hidden;
@@ -35,6 +36,8 @@
 - (NSDictionary *)asDictionary;
 
 - (BOOL)hasParentPatch;
+
+- (BOOL)hasAnAbuseReport;
 
 - (NSString *)description;
 

@@ -38,6 +38,7 @@ NSString *const GET_PATCHES_FOR_USER_URL = @"/patch/user";
 NSString *const CREATE_PATCH_URL = @"/patch/create_patch/";
 NSString *const UPDATE_PATCH_URL = @"/patch/update/";
 NSString *const DELETE_PATCH_URL = @"/patch/delete/";
+NSString *const REPORT_PATCH_URL = @"/patch/report/";
 
 // iOS User Agent Identifier
 NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
@@ -285,7 +286,7 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
                                 [patchesArray addObject:patch];
                             }
 
-                            NSLog(@"@getPatchesInternal - fetched %d patches", [patchesArray count]);
+                            NSLog(@"@getPatchesInternal - fetched %lu patches", (unsigned long)[patchesArray count]);
 
                             // Save response to our cache in case we hit this API again soon
                             [[PatchCache sharedInstance] setObject:patchesArray forKey:urlPath];
@@ -317,15 +318,13 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
     [[[NSURLSession sharedSession] dataTaskWithURL:[NSURL URLWithString:url] completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
         int statusCode = -1;
         if ([response isKindOfClass:[NSHTTPURLResponse class]]) {
-            statusCode = [(NSHTTPURLResponse *) response statusCode];
+            statusCode = (int)[(NSHTTPURLResponse *) response statusCode];
         }
 
         if (error == nil && data != nil && (statusCode == 200 || statusCode == -1)) {
             [[PatchCache sharedInstance] setObject:data forKey:url];
-            
             callback(data, nil);
-        }
-        else {
+        } else {
             callback(nil, [self errorWithErrorString:ERROR_STRING_ERROR_DOWNLOADING_PATCH_RESOURCE]);
         }
     }] resume];
@@ -337,6 +336,7 @@ NSString *const PATCH_NAME_PARAM_NAME = @"patch[name]";
 NSString *const PATCH_DESCRIPTION_PARAM_NAME = @"patch[description]";
 NSString *const PATCH_PARENT_ID_PARAM_NAME = @"patch[parent_id]";
 NSString *const IS_HIDDEN_PARAM_NAME = @"patch[hidden]";
+NSString *const IS_ABUSE_PARAM_NAME = @"is_abuse";
 
 NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
 
@@ -447,12 +447,13 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
         return;
     }
     
-    NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@%d/", baseUrl, DELETE_PATCH_URL, patch.patchId]];
+    NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@%ld/", baseUrl, DELETE_PATCH_URL, (long)patch.patchId]];
     
     NSLog(@"deletePatch - url = %@", url.absoluteString);
  
-    // Flush cache for getting my patches since we're about to delete one
+    // Flush cache for getting my patches and the resource since we're about to delete one
     [[PatchCache sharedInstance] removeObjectForKey:GET_MY_PATCHES_URL];
+    [[PatchCache sharedInstance] removeObjectForKey:[NSString stringWithFormat:@"%@%@", [[ChuckPadSocial sharedInstance] getBaseUrl], patch.resourceUrl]];
     
     [httpSessionManager GET:url.absoluteString parameters:[self getCurrentUserAuthParamsDictionary] progress:nil
                     success:^(NSURLSessionTask *task, id responseObject) {
@@ -467,6 +468,36 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
                         NSLog(@"deletePatch - error: %@", [error localizedDescription]);
                         callback(NO, [self errorMakingNetworkCall:error]);
                     }];
+}
+
+- (void)reportAbuse:(Patch *)patch isAbuse:(BOOL)isAbuse callback:(ReportAbuseCallback)callback {
+  // If the user is not logged in, fail now because not being logged in means you cannot report an abusive patch
+  if (![self isLoggedIn]) {
+    NSLog(@"reportAbuse - no user is currently logged in");
+    callback(false, [self errorBecauseNotLoggedIn]);
+    return;
+  }
+  
+  NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@%ld/", baseUrl, REPORT_PATCH_URL, (long)patch.patchId]];
+  
+  NSLog(@"reportAbuse - url = %@", url.absoluteString);
+  
+  NSMutableDictionary *requestParams = [self getCurrentUserAuthParamsDictionary];
+  [requestParams setObject:@(isAbuse) forKey:IS_ABUSE_PARAM_NAME];
+    
+  [httpSessionManager POST:url.absoluteString parameters:requestParams progress:nil
+                  success:^(NSURLSessionTask *task, id responseObject) {
+                    NSLog(@"reportAbuse - success: %@", responseObject);
+                    if ([self responseOk:responseObject]) {
+                      callback(YES, nil);
+                    } else {
+                      callback(NO, [self errorWithErrorString:[self getErrorMessageFromServiceReply:responseObject]]);
+                    }
+                  }
+                  failure:^(NSURLSessionTask *operation, NSError *error) {
+                    NSLog(@"reportAbuse - error: %@", [error localizedDescription]);
+                    callback(NO, [self errorMakingNetworkCall:error]);
+                  }];
 }
 
 // Private Helper Methods

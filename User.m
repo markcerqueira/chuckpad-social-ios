@@ -24,6 +24,6 @@
 }
 
 - (NSString *)description {
-    return [NSString stringWithFormat:@"userId = %d; username = %@; email = %@, isAdmin = %d", self.userId, self.username, self.email, self.isAdmin];
+    return [NSString stringWithFormat:@"userId = %ld; username = %@; email = %@, isAdmin = %d", (long)self.userId, self.username, self.email, self.isAdmin];
 }
 @end

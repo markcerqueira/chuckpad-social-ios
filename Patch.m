@@ -34,6 +34,7 @@ static NSDateFormatter *dateFormatter;
         self.hidden = [dictionary[@"hidden"] boolValue];
         self.creatorId = [dictionary[@"creator_id"] integerValue];
         self.creatorUsername = dictionary[@"creator_username"];
+        self.abuseReportCount = [dictionary[@"abuse_count"] integerValue];
         self.resourceUrl = dictionary[@"resource"];
         self.filename = dictionary[@"filename"];
         self.createdAt = [dateFormatter dateFromString:dictionary[@"created_at"]];
@@ -55,6 +56,7 @@ static NSDateFormatter *dateFormatter;
             @"hidden" : @(self.hidden),
             @"creator_id" : @(self.creatorId),
             @"creator_username" : self.creatorUsername,
+            @"abuseReportCount" : @(self.abuseReportCount),
             @"resource" : self.resourceUrl,
             @"filename" : self.filename,
             @"created_at" : [dateFormatter stringFromDate:self.createdAt],
@@ -81,6 +83,10 @@ static NSDateFormatter *dateFormatter;
     return self.parentPatchId != -1;
 }
 
+- (BOOL)hasAnAbuseReport {
+    return self.abuseReportCount > 0;
+}
+
 - (NSString *)description {
     return [NSString stringWithFormat:@"patchId = %ld; name = %@; documentation = %d, featured = %d", (long)self.patchId, self.name, self.isDocumentation, self.isFeatured];
 }
@@ -95,7 +101,7 @@ static NSDateFormatter *dateFormatter;
     return self.patchId == other.patchId && [self.name isEqualToString:other.name] && [self.patchDescription isEqualToString:other.patchDescription] &&
             self.parentPatchId == other.parentPatchId && self.isFeatured == other.isFeatured && self.isDocumentation == other.isDocumentation &&
             self.hidden == other.hidden && self.creatorId == other.creatorId && [self.creatorUsername isEqualToString:other.creatorUsername] &&
-            [self.resourceUrl isEqualToString:other.resourceUrl] && [self.filename isEqualToString:other.filename] &&
+            [self.resourceUrl isEqualToString:other.resourceUrl] && [self.filename isEqualToString:other.filename] && self.abuseReportCount == other.abuseReportCount &&
             [self.createdAt isEqual:other.createdAt] && [self.updatedAt isEqual:other.updatedAt] && self.downloadCount == other.downloadCount;
 }
 

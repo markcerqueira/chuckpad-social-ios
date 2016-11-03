@@ -26,6 +26,8 @@ typedef void(^DeletePatchCallback)(BOOL succeeded, NSError *error);
 
 typedef void(^DownloadPatchResourceCallback)(NSData *patchData, NSError *error);
 
+typedef void(^ReportAbuseCallback)(BOOL succeeded, NSError *error);
+
 // Notification Constants
 
 // Posted when login (regular login and automatic login following registration) of a user is complete
@@ -127,6 +129,10 @@ typedef enum {
 
 // Deletes the given patch.
 - (void)deletePatch:(Patch *)patch callback:(DeletePatchCallback)callback;
+
+// --- Patch Abuse API ---
+
+- (void)reportAbuse:(Patch *)patch isAbuse:(BOOL)isAbuse callback:(ReportAbuseCallback)callback;
 
 @end
 
