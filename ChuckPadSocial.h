@@ -22,6 +22,8 @@ typedef void(^CreatePatchCallback)(BOOL succeeded, Patch *patch, NSError *error)
 
 typedef void(^UpdatePatchCallback)(BOOL succeeded, Patch *patch, NSError *error);
 
+typedef void(^GetPatchInfoCallback)(BOOL succeeded, Patch *patch, NSError *error);
+
 typedef void(^DeletePatchCallback)(BOOL succeeded, NSError *error);
 
 typedef void(^DownloadPatchResourceCallback)(NSData *patchData, NSError *error);
@@ -93,6 +95,9 @@ typedef enum {
 - (BOOL)isLoggedIn;
 
 // --- Get Patches API ---
+
+// Gets patch metadata for the given patch id.
+- (void)getPatchInfo:(NSInteger)patchId callback:(GetPatchInfoCallback)callback;
 
 // Returns all patches for the currently logged in user.
 - (void)getMyPatches:(GetPatchesCallback)callback;

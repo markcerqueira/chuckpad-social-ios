@@ -34,6 +34,7 @@ NSString *const GET_FEATURED_URL = @"/patch/featured";
 NSString *const GET_RECENT_URL = @"/patch/new";
 NSString *const GET_MY_PATCHES_URL = @"/patch/my";
 NSString *const GET_PATCHES_FOR_USER_URL = @"/patch/user";
+NSString *const GET_SINGLE_PATCH_INFO = @"/patch/info";
 
 NSString *const CREATE_PATCH_URL = @"/patch/create_patch/";
 NSString *const UPDATE_PATCH_URL = @"/patch/update/";
@@ -299,6 +300,28 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
                     failure:^(NSURLSessionTask *operation, NSError *error) {
                         NSLog(@"getPatchesInternal - error: %@", [error localizedDescription]);
                         callback(nil, [self errorMakingNetworkCall:error]);
+                    }];
+}
+
+- (void)getPatchInfo:(NSInteger)patchId callback:(GetPatchInfoCallback)callback {
+    NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@/%ld", baseUrl, GET_SINGLE_PATCH_INFO, (long)patchId]];
+    
+    NSLog(@"getPatchInfo - url = %@", url.absoluteString);
+
+    // Do not use cache here because we want to ensure we always return fresh metadata.
+    
+    [httpSessionManager GET:url.absoluteString parameters:nil progress:nil
+                    success:^(NSURLSessionTask *task, id responseObject) {
+                        if ([self responseOk:responseObject]) {
+                            Patch *patch = [self getPatchFromMessageResponse:responseObject];
+                            callback(YES, patch, nil);
+                        } else {
+                            callback(NO, nil, [self errorWithErrorString:ERROR_STRING_ERROR_FETCHING_PATCHES]);
+                        }
+                    }
+                    failure:^(NSURLSessionTask *operation, NSError *error) {
+                        NSLog(@"getPatchInfo - error: %@", [error localizedDescription]);
+                        callback(NO, nil, [self errorMakingNetworkCall:error]);
                     }];
 }
 
