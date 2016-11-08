@@ -56,7 +56,7 @@ static NSDateFormatter *dateFormatter;
             @"hidden" : @(self.hidden),
             @"creator_id" : @(self.creatorId),
             @"creator_username" : self.creatorUsername,
-            @"abuseReportCount" : @(self.abuseReportCount),
+            @"abuse_count" : @(self.abuseReportCount),
             @"resource" : self.resourceUrl,
             @"filename" : self.filename,
             @"created_at" : [dateFormatter stringFromDate:self.createdAt],
