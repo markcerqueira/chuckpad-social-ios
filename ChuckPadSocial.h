@@ -30,6 +30,8 @@ typedef void(^DownloadPatchResourceCallback)(NSData *patchData, NSError *error);
 
 typedef void(^ReportAbuseCallback)(BOOL succeeded, NSError *error);
 
+typedef void(^LogOutCallback)(BOOL succeeded, NSError *error);
+
 // Notification Constants
 
 // Posted when login (regular login and automatic login following registration) of a user is complete
@@ -76,8 +78,13 @@ typedef enum {
 // against usernames and emails.
 - (void)logIn:(NSString *)usernameOrEmail password:(NSString *)password callback:(CreateUserCallback)callback;
 
-// De-authenticates a user from the ChuckPad service and clears their login information stored on the device.
-- (void)logOut;
+// De-authenticates a user from the service (i.e. invalidates their auth token) and clears their login information
+// stored on the device.
+- (void)logOut:(LogOutCallback)callback;
+
+// Similiar to the above method but only clears local credentials and does not invalidate the auth token on the
+// service. The logOut method above is the preferred method of logging out.
+- (void)localLogOut;
 
 // Returns the user id (non-changing, permanent integer identifier) for the currently logged in user.
 - (NSInteger)getLoggedInUserId;

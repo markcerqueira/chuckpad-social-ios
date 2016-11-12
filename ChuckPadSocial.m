@@ -28,6 +28,7 @@
 NSString *const CREATE_USER_URL = @"/user/create_user";
 NSString *const LOGIN_USER_URL = @"/user/login";
 NSString *const CHANGE_PASSWORD_URL = @"/user/change_password";
+NSString *const LOG_OUT_URL = @"/user/logout";
 
 NSString *const GET_DOCUMENTATION_URL = @"/patch/documentation";
 NSString *const GET_FEATURED_URL = @"/patch/featured";
@@ -49,6 +50,7 @@ NSString *const ERROR_STRING_LOGGED_IN_ALREADY = @"Someone is already logged in.
 NSString *const ERROR_STRING_NO_USER_LOGGED_IN = @"No user is currently logged in. Please log in and try again.";
 NSString *const ERROR_STRING_ERROR_FETCHING_PATCHES = @"There was an error fetching the scripts. Please try again later.";
 NSString *const ERROR_STRING_ERROR_DOWNLOADING_PATCH_RESOURCE = @"There was an error downloading the script. Please try again later.";
+NSString *const ERROR_STRING_LOGGING_OUT = @"There was an error logging out. Please try again later.";
 
 // NSNotification constants
 NSString *const CHUCKPAD_SOCIAL_LOG_IN = @"CHUCKPAD_SOCIAL_LOG_IN";
@@ -157,19 +159,42 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
                      }];
 }
 
-- (void)logOut {
+- (void)logOut:(LogOutCallback)callback {
     // If not logged in, log an error and abort early
     if (![self isLoggedIn]) {
         NSLog(@"logOut - no user is currently logged in; aborting");
+        callback(false, [self errorWithErrorString:ERROR_STRING_NO_USER_LOGGED_IN]);
         return;
     }
+    
+    NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@", baseUrl, LOG_OUT_URL]];
 
-    // There is no API to log out. We just clear the credentials from the keychain which makes the user "logged out."
+    NSLog(@"logOut - url = %@", url.absoluteString);
+    
+    NSMutableDictionary *requestParams = [self getCurrentUserAuthParamsDictionary];
+    
+    [httpSessionManager POST:url.absoluteString parameters:requestParams progress:nil
+                     success:^(NSURLSessionTask *task, id responseObject) {
+                         if ([self responseOk:responseObject]) {
+                             [self localLogOut];
+                             callback(true, nil);
+                         } else {
+                             callback(false, [self errorWithErrorString:ERROR_STRING_LOGGING_OUT]);
+                         }
+                     }
+                     failure:^(NSURLSessionTask *operation, NSError *error) {
+                         NSLog(@"logOut - error: %@", [error localizedDescription]);
+                         callback(false, [self errorMakingNetworkCall:error]);
+                     }];
+}
+
+- (void)localLogOut {
+    // Clear the credentials from the keychain
     [[ChuckPadKeychain sharedInstance] clearCredentials];
-
+    
     // Post notification so UI can update itself
     [[NSNotificationCenter defaultCenter] postNotificationName:CHUCKPAD_SOCIAL_LOG_OUT object:nil userInfo:nil];
-
+    
     // Flush the cache on user change events
     [[PatchCache sharedInstance] removeAllObjects];
 }
