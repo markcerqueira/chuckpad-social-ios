@@ -18,6 +18,8 @@
 #import "PatchCache.h"
 #import "User.h"
 
+static Instance environmentType = Unconfigured;
+
 @implementation ChuckPadSocial {
     @private AFHTTPSessionManager *httpSessionManager;
     @private NSString *baseUrl;
@@ -56,9 +58,29 @@ NSString *const ERROR_STRING_LOGGING_OUT = @"There was an error logging out. Ple
 NSString *const CHUCKPAD_SOCIAL_LOG_IN = @"CHUCKPAD_SOCIAL_LOG_IN";
 NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
 
+// NSUserDefaults Keys
+NSString *const ENVIRONMENT_KEY = @"ENVIRONMENT_KEY";
+
++ (void)bootstrapForInstance:(Instance)instance {
+    if ((environmentType != Unconfigured && environmentType != instance) || instance == Unconfigured) {
+        [NSException raise:@"ChuckPadSocial already bootstrapped"
+                    format:@"bootstrapForInstance should only be called once and its value cannot be changed once set"];
+    }
+    
+    environmentType = instance;
+}
+
+// DO NOT call this method! This method should ONLY be called from unit tests.
++ (void)resetSharedInstanceAndBoostrap {
+    environmentType = Unconfigured;
+    sharedInstance = nil;
+    onceToken = 0;
+}
+
+static ChuckPadSocial *sharedInstance = nil;
+static dispatch_once_t onceToken;
+
 + (ChuckPadSocial *)sharedInstance {
-    static ChuckPadSocial *sharedInstance = nil;
-    static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         sharedInstance = [[ChuckPadSocial alloc] init];
         [sharedInstance initializeNetworkManager];
@@ -73,9 +95,9 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
     NSString *userAgent = [httpSessionManager.requestSerializer  valueForHTTPHeaderField:@"User-Agent"];
     userAgent = [userAgent stringByAppendingPathComponent:CHUCKPAD_SOCIAL_IOS_USER_AGENT];
     [httpSessionManager.requestSerializer setValue:userAgent forHTTPHeaderField:@"User-Agent"];
-
-    environmentUrls = [[NSArray alloc] initWithObjects:EnvironmentHostUrls];
-    baseUrl = environmentUrls[[[NSUserDefaults standardUserDefaults] integerForKey:@"Environment"]];
+    
+    environmentUrls = [self instanceUrls];
+    baseUrl = environmentUrls[[[NSUserDefaults standardUserDefaults] integerForKey:ENVIRONMENT_KEY]];
 }
 
 - (NSString *)getBaseUrl {
@@ -84,18 +106,33 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
 
 - (void)setEnvironment:(Environment)environment {
     baseUrl = environmentUrls[environment];
-    [[NSUserDefaults standardUserDefaults] setInteger:environment forKey:@"Environment"];
+    [[NSUserDefaults standardUserDefaults] setInteger:environment forKey:ENVIRONMENT_KEY];
 }
 
 - (void)toggleEnvironment {
-    NSInteger currentEnviroment = [[NSUserDefaults standardUserDefaults] integerForKey:@"Environment"];
+    NSInteger currentEnviroment = [[NSUserDefaults standardUserDefaults] integerForKey:ENVIRONMENT_KEY];
     currentEnviroment++;
     
-    if (currentEnviroment > 2) {
+    if (currentEnviroment > 1) {
         currentEnviroment = 0;
     }
 
     [self setEnvironment:(Environment) currentEnviroment];
+}
+
+- (NSArray *)instanceUrls {
+    if (environmentType == Local) {
+        return [[NSArray alloc] initWithObjects:LocalURLs];
+    } else if (environmentType == MiniAudicle) {
+        return [[NSArray alloc] initWithObjects:MiniAudicleURLs];
+    } else if (environmentType == Auraglyph) {
+        return [[NSArray alloc] initWithObjects:AuraglyphURLs];
+    }
+    
+    [NSException raise:@"ChuckPadSocial is not bootstrapped"
+                format:@"Environment must be specified with the bootstrapForInstance method"];
+    
+    return nil;
 }
 
 // User API
