@@ -22,9 +22,15 @@ typedef void(^CreatePatchCallback)(BOOL succeeded, Patch *patch, NSError *error)
 
 typedef void(^UpdatePatchCallback)(BOOL succeeded, Patch *patch, NSError *error);
 
+typedef void(^GetPatchInfoCallback)(BOOL succeeded, Patch *patch, NSError *error);
+
 typedef void(^DeletePatchCallback)(BOOL succeeded, NSError *error);
 
 typedef void(^DownloadPatchResourceCallback)(NSData *patchData, NSError *error);
+
+typedef void(^ReportAbuseCallback)(BOOL succeeded, NSError *error);
+
+typedef void(^LogOutCallback)(BOOL succeeded, NSError *error);
 
 // Notification Constants
 
@@ -72,8 +78,13 @@ typedef enum {
 // against usernames and emails.
 - (void)logIn:(NSString *)usernameOrEmail password:(NSString *)password callback:(CreateUserCallback)callback;
 
-// De-authenticates a user from the ChuckPad service and clears their login information stored on the device.
-- (void)logOut;
+// De-authenticates a user from the service (i.e. invalidates their auth token) and clears their login information
+// stored on the device.
+- (void)logOut:(LogOutCallback)callback;
+
+// Similiar to the above method but only clears local credentials and does not invalidate the auth token on the
+// service. The logOut method above is the preferred method of logging out.
+- (void)localLogOut;
 
 // Returns the user id (non-changing, permanent integer identifier) for the currently logged in user.
 - (NSInteger)getLoggedInUserId;
@@ -91,6 +102,9 @@ typedef enum {
 - (BOOL)isLoggedIn;
 
 // --- Get Patches API ---
+
+// Gets patch metadata for the given patch id.
+- (void)getPatchInfo:(NSInteger)patchId callback:(GetPatchInfoCallback)callback;
 
 // Returns all patches for the currently logged in user.
 - (void)getMyPatches:(GetPatchesCallback)callback;
@@ -127,6 +141,10 @@ typedef enum {
 
 // Deletes the given patch.
 - (void)deletePatch:(Patch *)patch callback:(DeletePatchCallback)callback;
+
+// --- Patch Abuse API ---
+
+- (void)reportAbuse:(Patch *)patch isAbuse:(BOOL)isAbuse callback:(ReportAbuseCallback)callback;
 
 @end
 
