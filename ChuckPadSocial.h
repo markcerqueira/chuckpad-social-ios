@@ -32,6 +32,8 @@ typedef void(^ReportAbuseCallback)(BOOL succeeded, NSError *error);
 
 typedef void(^LogOutCallback)(BOOL succeeded, NSError *error);
 
+typedef void(^ForgotPasswordCallback)(BOOL succeeded, NSError *error);
+
 // Notification Constants
 
 // Posted when login (regular login and automatic login following registration) of a user is complete
@@ -110,6 +112,10 @@ typedef enum {
 // Similiar to the above method but only clears local credentials and does not invalidate the auth token on the
 // service. The logOut method above is the preferred method of logging out.
 - (void)localLogOut;
+
+// Triggers an email to be sent to the account linked to the given username/password which includes a web link that
+// allows the user to reset their password.
+- (void)forgotPassword:(NSString *)usernameOrEmail callback:(ForgotPasswordCallback)callback;
 
 // Returns the user id (non-changing, permanent integer identifier) for the currently logged in user.
 - (NSInteger)getLoggedInUserId;

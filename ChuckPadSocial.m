@@ -30,6 +30,7 @@ static Instance environmentType = Unconfigured;
 NSString *const CREATE_USER_URL = @"/user/create_user";
 NSString *const LOGIN_USER_URL = @"/user/login";
 NSString *const CHANGE_PASSWORD_URL = @"/user/change_password";
+NSString *const FORGOT_PASSWORD_URL = @"/user/password/reset";
 NSString *const LOG_OUT_URL = @"/user/logout";
 
 NSString *const GET_DOCUMENTATION_URL = @"/patch/documentation";
@@ -234,6 +235,27 @@ static dispatch_once_t onceToken;
     
     // Flush the cache on user change events
     [[PatchCache sharedInstance] removeAllObjects];
+}
+
+- (void)forgotPassword:(NSString *)usernameOrEmail callback:(ForgotPasswordCallback)callback {
+    NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@", baseUrl, FORGOT_PASSWORD_URL]];
+
+    NSLog(@"forgotPassword - url = %@", url.absoluteString);
+    NSDictionary *requestParams = @{@"username_or_email" : usernameOrEmail};
+
+    [httpSessionManager POST:url.absoluteString parameters:requestParams progress:nil
+                     success:^(NSURLSessionDataTask *task, id responseObject) {
+                         NSLog(@"forgotPassword - success: %@", responseObject);
+                         if ([self responseOk:responseObject]) {
+                             callback(true, nil);
+                         } else {
+                             callback(false, [self errorWithErrorString:[self getErrorMessageFromServiceReply:responseObject]]);
+                         }
+                     }
+                     failure:^(NSURLSessionDataTask *task, NSError *error) {
+                         NSLog(@"forgotPassword - error: %@", [error localizedDescription]);
+                         callback(false, [self errorMakingNetworkCall:error]);
+                     }];
 }
 
 - (void)changePassword:(NSString *)newPassword callback:(CreateUserCallback)callback {
