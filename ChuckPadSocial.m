@@ -18,7 +18,7 @@
 #import "PatchCache.h"
 #import "User.h"
 
-static Instance environmentType = Unconfigured;
+static PatchType sPatchType = Unconfigured;
 
 @implementation ChuckPadSocial {
     @private AFHTTPSessionManager *httpSessionManager;
@@ -62,18 +62,18 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
 // NSUserDefaults Keys
 NSString *const ENVIRONMENT_KEY = @"ENVIRONMENT_KEY";
 
-+ (void)bootstrapForInstance:(Instance)instance {
-    if ((environmentType != Unconfigured && environmentType != instance) || instance == Unconfigured) {
++ (void)bootstrapForPatchType:(PatchType)patchType {
+    if ((sPatchType != Unconfigured && sPatchType != patchType) || patchType == Unconfigured) {
         [NSException raise:@"ChuckPadSocial already bootstrapped"
-                    format:@"bootstrapForInstance should only be called once and its value cannot be changed once set"];
+                    format:@"bootstrapForPatchType should only be called once and its value cannot be changed once set"];
     }
     
-    environmentType = instance;
+    sPatchType = patchType;
 }
 
 // DO NOT call this method! This method should ONLY be called from unit tests.
 + (void)resetSharedInstanceAndBoostrap {
-    environmentType = Unconfigured;
+    sPatchType = Unconfigured;
     sharedInstance = nil;
     onceToken = 0;
 }
@@ -97,7 +97,7 @@ static dispatch_once_t onceToken;
     userAgent = [userAgent stringByAppendingPathComponent:CHUCKPAD_SOCIAL_IOS_USER_AGENT];
     [httpSessionManager.requestSerializer setValue:userAgent forHTTPHeaderField:@"User-Agent"];
     
-    environmentUrls = [self instanceUrls];
+    environmentUrls = [[NSArray alloc] initWithObjects:EnvironmentHostUrls];
     baseUrl = environmentUrls[[[NSUserDefaults standardUserDefaults] integerForKey:ENVIRONMENT_KEY]];
 }
 
@@ -114,26 +114,11 @@ static dispatch_once_t onceToken;
     NSInteger currentEnviroment = [[NSUserDefaults standardUserDefaults] integerForKey:ENVIRONMENT_KEY];
     currentEnviroment++;
     
-    if (currentEnviroment > 1) {
+    if (currentEnviroment > 2) {
         currentEnviroment = 0;
     }
 
     [self setEnvironment:(Environment) currentEnviroment];
-}
-
-- (NSArray *)instanceUrls {
-    if (environmentType == Local) {
-        return [[NSArray alloc] initWithObjects:LocalURLs];
-    } else if (environmentType == MiniAudicle) {
-        return [[NSArray alloc] initWithObjects:MiniAudicleURLs];
-    } else if (environmentType == Auraglyph) {
-        return [[NSArray alloc] initWithObjects:AuraglyphURLs];
-    }
-    
-    [NSException raise:@"ChuckPadSocial is not bootstrapped"
-                format:@"Environment must be specified with the bootstrapForInstance method"];
-    
-    return nil;
 }
 
 // User API
@@ -439,6 +424,7 @@ static dispatch_once_t onceToken;
 
 NSString *const PATCH_ID_PARAM_NAME = @"patch[id]";
 NSString *const FILE_DATA_PARAM_NAME = @"patch[data]";
+NSString *const PATCH_TYPE_PARAM_NAME = @"patch[type]";
 NSString *const PATCH_NAME_PARAM_NAME = @"patch[name]";
 NSString *const PATCH_DESCRIPTION_PARAM_NAME = @"patch[description]";
 NSString *const PATCH_PARENT_ID_PARAM_NAME = @"patch[parent_id]";
@@ -525,6 +511,8 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
         requestParams[PATCH_PARENT_ID_PARAM_NAME] = @(parentId);
     }
 
+    requestParams[PATCH_TYPE_PARAM_NAME] = @(sPatchType);
+    
     // Flush cache for getting my patches
     [[PatchCache sharedInstance] removeObjectForKey:GET_MY_PATCHES_URL];
 
@@ -646,6 +634,8 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
         requestParams[@"auth_token"] = [self getLoggedInAuthToken];
         requestParams[@"email"] = [self getLoggedInEmail];
     }
+    
+    requestParams[@"type"] = @(sPatchType);
     
     return requestParams;
 }

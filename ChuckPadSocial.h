@@ -42,37 +42,28 @@ extern NSString *const CHUCKPAD_SOCIAL_LOG_IN;
 // Sent when a user is logged out
 extern NSString *const CHUCKPAD_SOCIAL_LOG_OUT;
 
-// Instance refers to the backend service (e.g. the Heroku instance) ChuckPadSocial will contact.
+// The ChuckPadSocial service can host patches from different applications. This singleton class needs to be
+// bootstrapped via the bootstrapForPatchType method to get and upload the proper patch types.
 typedef enum {
-    Unconfigured,
-    Local,
-    MiniAudicle,
-    Auraglyph
-} Instance;
+    Unconfigured = 0,
+    MiniAudicle = 1,
+    Auraglyph = 2
+} PatchType;
 
-// For each Instance above, there should be an environment configured for each of the following. The URLs below should
-// map respectively to the environments here (i.e. Production URL first, Stage URL second). Note that for the Local
-// Instance we always point to localhost:9292.
-//
 // If the number of elements in this enum change, update the toggleEnvironment method!
 typedef enum {
     Production,
-    Stage
+    Stage,
+    Local
 } Environment;
 
-// For each respective Instance above (Unconfigured excluded) there should be a set of URLs that map to the various
-// values for the Environment enum above. These URLs should be returned in the instanceUrls method.
-#define LocalURLs @"http://localhost:9292", @"http://localhost:9292", nil
-
-#define MiniAudicleURLs @"https://chuckpad-social.herokuapp.com", @"https://chuckpad-social-stage.herokuapp.com", nil
-
-#define AuraglyphURLs @"https://auraglyph-social.herokuapp.com", @"https://auraglyph-social-stage.herokuapp.com", nil
+#define EnvironmentHostUrls @"https://chuckpad-social.herokuapp.com", @"https://chuckpad-social-stage.herokuapp.com", @"http://localhost:9292", nil
 
 @interface ChuckPadSocial : NSObject
 
-// This method configures the ChuckPadSocial class to point to the proper instance environment which loads the proper
-// URLs. This method MUST be called before any other method on ChuckPadSocial!
-+ (void)bootstrapForInstance:(Instance)instance;
+// This method configures the ChuckPadSocial class to upload and get patches of a specific type. This method MUST be
+// called before any other method on ChuckPadSocial!
++ (void)bootstrapForPatchType:(PatchType)patchType;
 
 // Returns the ChuckPadSocial singleton instance.
 + (ChuckPadSocial *)sharedInstance;
@@ -82,17 +73,14 @@ typedef enum {
 // Returns the root URL of the environment API calls will be made against.
 - (NSString *)getBaseUrl;
 
-// Sets environment. Environment can be Production or Stage. Note that credentials are stored per environment so if you
-// log into Stage as User A, then switch to Production and log in as User B, and then switch back to Stage you will
-// remain logged in as User A. If this behavior is not desired, call logOut before switching environment.
+// Sets environment. Environment can be Production, Stage, or Local. Note that credentials are stored per environment
+// so if you log into Stage as User A, then switch to Production and log in as User B, and then switch back to Stage
+// you will remain logged in as User A. If this behavior is not desired, call logOut before switching environment.
 - (void)setEnvironment:(Environment)environment;
 
 // Rotates through the environments as they are declared in the Environment enum. If called while enviroment is
-// Production the environment switches to Stage. If called on Stage, the enviroment switches to Production.
+// Production the environment switches to Stage. If called on Local, the environment switches to Production.
 - (void)toggleEnvironment;
-
-// Returns the URLs for the given instance. These will be ordered by the definition of the Environment enum above.
-- (NSArray *)instanceUrls;
 
 // --- User API ---
 
