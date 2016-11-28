@@ -626,18 +626,29 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     return json;
 }
 
+NSString *const USER_ID_PARAM_KEY = @"user_id";
+NSString *const AUTH_TOKEN_PARAM_KEY = @"auth_token";
+NSString *const EMAIL_PARAM_KEY = @"email";
+NSString *const TYPE_PARAM_KEY = @"type";
+
 - (NSMutableDictionary *)getCurrentUserAuthParamsDictionary {
-    NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
+    NSMutableDictionary *requestParams = [self getBaseRequestDictionary];
     
     if ([self isLoggedIn]) {
-        requestParams[@"user_id"] = @([self getLoggedInUserId]);
-        requestParams[@"auth_token"] = [self getLoggedInAuthToken];
-        requestParams[@"email"] = [self getLoggedInEmail];
+        requestParams[USER_ID_PARAM_KEY] = @([self getLoggedInUserId]);
+        requestParams[AUTH_TOKEN_PARAM_KEY] = [self getLoggedInAuthToken];
+        requestParams[EMAIL_PARAM_KEY] = [self getLoggedInEmail];
     }
     
-    requestParams[@"type"] = @(sPatchType);
-    
     return requestParams;
+}
+
+- (NSMutableDictionary *)getBaseRequestDictionary {
+    NSMutableDictionary *baseRequestDictionary = [[NSMutableDictionary alloc] init];
+    
+    baseRequestDictionary[TYPE_PARAM_KEY] = @(sPatchType);
+    
+    return baseRequestDictionary;
 }
 
 - (BOOL)responseOk:(id)responseObject {
