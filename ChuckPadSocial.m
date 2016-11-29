@@ -26,6 +26,11 @@ static PatchType sPatchType = Unconfigured;
     @private NSArray *environmentUrls;
 }
 
+// API Response Code constants
+NSInteger SUCCESS_CODE = 200;
+NSInteger ERROR_CODE = 500;
+NSInteger AUTH_ERROR = 400;
+
 // API URLs
 NSString *const CREATE_USER_URL = @"/user/create_user";
 NSString *const LOGIN_USER_URL = @"/user/login";
@@ -652,13 +657,17 @@ NSString *const TYPE_PARAM_KEY = @"type";
 }
 
 - (BOOL)responseOk:(id)responseObject {
-    if(responseObject == nil) {
+    if (responseObject == nil) {
         return NO;
     }
-
-    if([responseObject respondsToSelector:@selector(objectForKey:)] &&
-       [responseObject objectForKey:@"code"] != nil &&
-       [responseObject[@"code"] intValue] != 200) {
+    
+    if ([responseObject[@"code"] intValue] != SUCCESS_CODE) {
+        // If we get an AUTH_ERROR code that means this user is making calls with an invalid auth token. Log them out.
+        if ([responseObject[@"code"] intValue] == AUTH_ERROR) {
+            NSLog(@"responseOk - received an AUTH_ERROR response code; calling localLogOut");
+            [self localLogOut];
+        }
+        
         return NO;
     }
 

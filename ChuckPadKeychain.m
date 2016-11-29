@@ -83,4 +83,19 @@
     return [NSString stringWithFormat:@"%@_%@_%ld", string, [[ChuckPadSocial sharedInstance] getBaseUrl], (long)[[NSUserDefaults standardUserDefaults] integerForKey:@"Environment"]];
 }
 
+// For unit testing only! Please do not call these methods!
+
+static User *memoryUser;
+
++ (void)copyKeychainInfoToMemory {
+    memoryUser = [[User alloc] initWithDictionary:@{@"id" : @([[ChuckPadKeychain sharedInstance] getLoggedInUserId]),
+                                                    @"username" : [[ChuckPadKeychain sharedInstance] getLoggedInUserName],
+                                                    @"email": [[ChuckPadKeychain sharedInstance] getLoggedInEmail],
+                                                    @"auth_token": [[ChuckPadKeychain sharedInstance] getLoggedInAuthToken]}];
+}
+
++ (void)copyMemoryInfoToKeychain {
+    [[ChuckPadKeychain sharedInstance] authSucceededWithUser:memoryUser];
+}
+
 @end
