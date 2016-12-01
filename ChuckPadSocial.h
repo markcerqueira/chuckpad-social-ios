@@ -7,10 +7,14 @@
 #ifndef ChuckPadSocial_h
 #define ChuckPadSocial_h
 
-#import <objc/NSObject.h>
 #import <Foundation/Foundation.h>
 
-@class Patch;
+#import "ChuckPadKeychain.h"
+#import "Patch.h"
+#import "PatchCache.h"
+#import "User.h"
+
+#import "NSDate+Helper.h"
 
 // If the service returns 0 patches because 0 patches match the conditions (e.g. you request a user's patches but the
 // user has 0), the callback will return an NSArry of size 0 and a nil error.

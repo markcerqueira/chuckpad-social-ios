@@ -13,10 +13,8 @@
 #import "ChuckPadSocial.h"
 
 #import "AFHTTPSessionManager.h"
-#import "ChuckPadKeychain.h"
-#import "Patch.h"
-#import "PatchCache.h"
-#import "User.h"
+
+#include <CommonCrypto/CommonDigest.h>
 
 static PatchType sPatchType = Unconfigured;
 
@@ -601,6 +599,21 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
 }
 
 // Private Helper Methods
+
+// SHA256 hex digest adapted from: http://stackoverflow.com/a/7520655/265791
+- (NSString *)SHA256hexDigestForData:(NSData *)data {
+    NSMutableData *sha256Out = [NSMutableData dataWithLength:CC_SHA256_DIGEST_LENGTH];
+    CC_SHA256(data.bytes, (CC_LONG)data.length, sha256Out.mutableBytes);
+    
+    NSUInteger capacity = sha256Out.length * 2;
+    NSMutableString *hexDigestString = [NSMutableString stringWithCapacity:capacity];
+    const unsigned char *buf = sha256Out.bytes;
+    NSInteger i;
+    for (i=0; i<sha256Out.length; ++i) {
+        [hexDigestString appendFormat:@"%02X", buf[i]];
+    }
+    return hexDigestString;
+}
 
 - (void)processAuthResponse:(id)responseObject callback:(CreateUserCallback)callback {
     if ([self responseOk:responseObject]) {
