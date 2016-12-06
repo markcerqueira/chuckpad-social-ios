@@ -30,11 +30,12 @@ NSInteger ERROR_CODE = 500;
 NSInteger AUTH_ERROR = 400;
 
 // API URLs
-NSString *const CREATE_USER_URL = @"/user/create_user";
+NSString *const CREATE_USER_URL = @"/user/create";
 NSString *const LOGIN_USER_URL = @"/user/login";
-NSString *const CHANGE_PASSWORD_URL = @"/user/change_password";
-NSString *const FORGOT_PASSWORD_URL = @"/user/password/reset";
 NSString *const LOG_OUT_URL = @"/user/logout";
+
+NSString *const CHANGE_PASSWORD_URL = @"/user/password/change";
+NSString *const FORGOT_PASSWORD_URL = @"/user/password/reset";
 
 NSString *const GET_DOCUMENTATION_URL = @"/patch/documentation";
 NSString *const GET_FEATURED_URL = @"/patch/featured";
@@ -43,7 +44,7 @@ NSString *const GET_MY_PATCHES_URL = @"/patch/my";
 NSString *const GET_PATCHES_FOR_USER_URL = @"/patch/user";
 NSString *const GET_SINGLE_PATCH_INFO = @"/patch/info";
 
-NSString *const CREATE_PATCH_URL = @"/patch/create_patch/";
+NSString *const CREATE_PATCH_URL = @"/patch/create/";
 NSString *const UPDATE_PATCH_URL = @"/patch/update/";
 NSString *const DELETE_PATCH_URL = @"/patch/delete/";
 NSString *const REPORT_PATCH_URL = @"/patch/report/";
