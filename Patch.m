@@ -25,10 +25,9 @@ static NSDateFormatter *dateFormatter;
     }
     
     if (self = [super init]) {
-        self.patchId = [dictionary[@"id"] integerValue];
+        self.guid = dictionary[@"guid"];
         self.name = dictionary[@"name"];
         self.patchDescription = dictionary[@"description"];
-        self.parentPatchId = [dictionary[@"parent_id"] integerValue];
         self.isFeatured = [dictionary[@"featured"] boolValue];
         self.isDocumentation = [dictionary[@"documentation"] boolValue];
         self.hidden = [dictionary[@"hidden"] boolValue];
@@ -36,33 +35,42 @@ static NSDateFormatter *dateFormatter;
         self.creatorUsername = dictionary[@"creator_username"];
         self.abuseReportCount = [dictionary[@"abuse_count"] integerValue];
         self.resourceUrl = dictionary[@"resource"];
-        self.filename = dictionary[@"filename"];
         self.createdAt = [dateFormatter dateFromString:dictionary[@"created_at"]];
         self.updatedAt = [dateFormatter dateFromString:dictionary[@"updated_at"]];
         self.downloadCount = [dictionary[@"download_count"] integerValue];
+        self.parentGUID = [self safeGetStringForKey:@"parent_guid" fromDictionary:dictionary];
+        self.extraResourceUrl = [self safeGetStringForKey:@"extra_resource" fromDictionary:dictionary];
     }
 
     return self;
 }
 
+// Use this method to get any parameters that may come down null or are optional. We default to using @"" when not
+// present over nil so we can more implement the asDictionary and equals methods.
+- (NSString *)safeGetStringForKey:(NSString *)key fromDictionary:(NSDictionary *)dictionary {
+    if (dictionary[key] != nil && dictionary[key] != [NSNull null]) {
+        return dictionary[key];
+    } else {
+        return @"";
+    }
+}
+
 - (NSDictionary *)asDictionary {
-    return @{
-            @"id" : @(self.patchId),
-            @"name" : self.name,
-            @"description" : self.patchDescription,
-            @"parent_id" : @(self.parentPatchId),
-            @"featured" : @(self.isFeatured),
-            @"documentation" : @(self.isDocumentation),
-            @"hidden" : @(self.hidden),
-            @"creator_id" : @(self.creatorId),
-            @"creator_username" : self.creatorUsername,
-            @"abuse_count" : @(self.abuseReportCount),
-            @"resource" : self.resourceUrl,
-            @"filename" : self.filename,
-            @"created_at" : [dateFormatter stringFromDate:self.createdAt],
-            @"updated_at" : [dateFormatter stringFromDate:self.updatedAt],
-            @"download_count" : @(self.downloadCount)
-    };
+    return @{ @"guid" : self.guid,
+              @"name" : self.name,
+              @"description" : self.patchDescription,
+              @"featured" : @(self.isFeatured),
+              @"documentation" : @(self.isDocumentation),
+              @"hidden" : @(self.hidden),
+              @"creator_id" : @(self.creatorId),
+              @"creator_username" : self.creatorUsername,
+              @"abuse_count" : @(self.abuseReportCount),
+              @"resource" : self.resourceUrl,
+              @"created_at" : [dateFormatter stringFromDate:self.createdAt],
+              @"updated_at" : [dateFormatter stringFromDate:self.updatedAt],
+              @"download_count" : @(self.downloadCount),
+              @"parent_guid" : self.parentGUID,
+              @"extra_resource" : self.extraResourceUrl };
 }
 
 - (NSString *)getTimeLastUpdatedWithPrefix:(BOOL)prefix {
@@ -80,15 +88,15 @@ static NSDateFormatter *dateFormatter;
 }
 
 - (BOOL)hasParentPatch {
-    return self.parentPatchId != -1;
+    return [self.parentGUID length] > 0;
 }
 
 - (BOOL)hasAnAbuseReport {
     return self.abuseReportCount > 0;
 }
 
-- (NSString *)description {
-    return [NSString stringWithFormat:@"patchId = %ld; name = %@; documentation = %d, featured = %d", (long)self.patchId, self.name, self.isDocumentation, self.isFeatured];
+- (BOOL)hasExtraResource {
+    return [self.extraResourceUrl length] > 0;
 }
 
 - (BOOL)isEqual:(id)object {
@@ -97,12 +105,18 @@ static NSDateFormatter *dateFormatter;
     }
     
     Patch *other = object;
-
-    return self.patchId == other.patchId && [self.name isEqualToString:other.name] && [self.patchDescription isEqualToString:other.patchDescription] &&
-            self.parentPatchId == other.parentPatchId && self.isFeatured == other.isFeatured && self.isDocumentation == other.isDocumentation &&
-            self.hidden == other.hidden && self.creatorId == other.creatorId && [self.creatorUsername isEqualToString:other.creatorUsername] &&
-            [self.resourceUrl isEqualToString:other.resourceUrl] && [self.filename isEqualToString:other.filename] && self.abuseReportCount == other.abuseReportCount &&
-            [self.createdAt isEqual:other.createdAt] && [self.updatedAt isEqual:other.updatedAt] && self.downloadCount == other.downloadCount;
+    
+    BOOL areEqual = YES;
+    
+    areEqual &= [self.guid isEqualToString:other.guid] && [self.name isEqualToString:other.name];
+    areEqual &= [self.patchDescription isEqualToString:other.patchDescription] && [self.resourceUrl isEqualToString:other.resourceUrl];
+    areEqual &= self.isFeatured == other.isFeatured && self.isDocumentation == other.isDocumentation;
+    areEqual &= self.hidden == other.hidden && self.creatorId == other.creatorId && [self.creatorUsername isEqualToString:other.creatorUsername];
+    areEqual &= [self.createdAt isEqual:other.createdAt] && [self.updatedAt isEqual:other.updatedAt];
+    areEqual &= self.downloadCount == other.downloadCount && [self.parentGUID isEqualToString:other.parentGUID];
+    areEqual &= [self.extraResourceUrl isEqualToString:other.extraResourceUrl] && self.abuseReportCount == other.abuseReportCount;
+    
+    return areEqual;
 }
 
 @end

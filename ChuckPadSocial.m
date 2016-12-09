@@ -56,8 +56,9 @@ NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
 NSString *const ERROR_STRING_LOGGED_IN_ALREADY = @"Someone is already logged in. Please log out and try again.";
 NSString *const ERROR_STRING_NO_USER_LOGGED_IN = @"No user is currently logged in. Please log in and try again.";
 NSString *const ERROR_STRING_ERROR_FETCHING_PATCHES = @"There was an error fetching the scripts. Please try again later.";
-NSString *const ERROR_STRING_ERROR_DOWNLOADING_PATCH_RESOURCE = @"There was an error downloading the script. Please try again later.";
+NSString *const ERROR_STRING_ERROR_DOWNLOADING_PATCH_RESOURCE = @"There was an error downloading the resource. Please try again later.";
 NSString *const ERROR_STRING_LOGGING_OUT = @"There was an error logging out. Please try again later.";
+NSString *const ERROR_STRING_NO_EXTRA_RESOURCE = @"This patch does not have any extra data associated with it.";
 
 // NSNotification constants
 NSString *const CHUCKPAD_SOCIAL_LOG_IN = @"CHUCKPAD_SOCIAL_LOG_IN";
@@ -376,8 +377,8 @@ static dispatch_once_t onceToken;
                     }];
 }
 
-- (void)getPatchInfo:(NSInteger)patchId callback:(GetPatchInfoCallback)callback {
-    NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@/%ld", baseUrl, GET_SINGLE_PATCH_INFO, (long)patchId]];
+- (void)getPatchInfo:(NSString *)patchGUID callback:(GetPatchInfoCallback)callback {
+    NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@/%@", baseUrl, GET_SINGLE_PATCH_INFO, patchGUID]];
     
     NSLog(@"getPatchInfo - url = %@", url.absoluteString);
 
@@ -398,14 +399,28 @@ static dispatch_once_t onceToken;
                     }];
 }
 
-- (void)downloadPatchResource:(Patch *)patch callback:(DownloadPatchResourceCallback)callback {
+- (void)downloadPatchResource:(Patch *)patch callback:(DownloadResourceCallback)callback {
     NSString *url = [NSString stringWithFormat:@"%@%@", [[ChuckPadSocial sharedInstance] getBaseUrl], patch.resourceUrl];
+    [self getData:url callback:callback];
+}
 
-    NSLog(@"downloadPatchResource - url = %@", url);
+- (void)downloadPatchExtraData:(Patch *)patch callback:(DownloadResourceCallback)callback {
+    if (![patch hasExtraResource]) {
+        NSLog(@"downloadPatchExtraData - this patch does not have an extra resource");
+        callback(nil, [self errorWithErrorString:ERROR_STRING_NO_EXTRA_RESOURCE]);
+        return;
+    }
+    
+    NSString *url = [NSString stringWithFormat:@"%@%@", [[ChuckPadSocial sharedInstance] getBaseUrl], patch.extraResourceUrl];
+    [self getData:url callback:callback];
+}
+
+- (void)getData:(NSString *)url callback:(DownloadResourceCallback)callback {
+    NSLog(@"getData - url = %@", url);
 
     NSData *patchDataFromCache = [[PatchCache sharedInstance] objectForKey:url];
     if (patchDataFromCache != nil) {
-        NSLog(@"downloadPatchResource - using cached patch");
+        NSLog(@"getData - using cached data");
         callback(patchDataFromCache, nil);
         return;
     }
@@ -426,19 +441,21 @@ static dispatch_once_t onceToken;
     }] resume];
 }
 
-NSString *const PATCH_ID_PARAM_NAME = @"patch[id]";
-NSString *const FILE_DATA_PARAM_NAME = @"patch[data]";
+NSString *const PATCH_GUID_PARAM_NAME = @"patch[guid]";
+NSString *const PATCH_DATA_PARAM_NAME = @"patch[data]";
+NSString *const PATCH_EXTRA_DATA_PARAM_NAME = @"patch[extra_data]";
 NSString *const PATCH_TYPE_PARAM_NAME = @"patch[type]";
 NSString *const PATCH_NAME_PARAM_NAME = @"patch[name]";
 NSString *const PATCH_DESCRIPTION_PARAM_NAME = @"patch[description]";
-NSString *const PATCH_PARENT_ID_PARAM_NAME = @"patch[parent_id]";
-NSString *const IS_HIDDEN_PARAM_NAME = @"patch[hidden]";
+NSString *const PATCH_PARENT_GUID_PARAM_NAME = @"patch[parent_guid]";
+NSString *const PATCH_IS_HIDDEN_PARAM_NAME = @"patch[hidden]";
+
 NSString *const IS_ABUSE_PARAM_NAME = @"is_abuse";
 
 NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
 
 - (void)updatePatch:(Patch *)patch hidden:(NSNumber *)isHidden name:(NSString *)name description:(NSString *)description
-           filename:(NSString *)filename fileData:(NSData *)fileData callback:(UpdatePatchCallback)callback {
+          patchData:(NSData *)patchData extraMetaData:(NSData *)extraData callback:(UpdatePatchCallback)callback {
     // If the user is not logged in, fail now because not being logged in means you cannot update a patch
     if (![self isLoggedIn]) {
         NSLog(@"updatePatch - no user is currently logged in");
@@ -453,28 +470,14 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
 
     NSMutableDictionary *requestParams = [self getCurrentUserAuthParamsDictionary];
 
-    requestParams[PATCH_ID_PARAM_NAME] = [NSString stringWithFormat:@"%ld", (long) patch.patchId];
-
-    if (isHidden != nil) {
-        requestParams[IS_HIDDEN_PARAM_NAME] = [NSString stringWithFormat:@"%d", [isHidden boolValue]];
-    }
-
-    if (name != nil) {
-        requestParams[PATCH_NAME_PARAM_NAME] = name;
-    }
-
-    if (description != nil) {
-        requestParams[PATCH_DESCRIPTION_PARAM_NAME] = description;
-    }
-
+    requestParams[PATCH_GUID_PARAM_NAME] = [NSString stringWithFormat:@"%@", patch.guid];
+    
+    [self appendIfNotNilToRequestParams:requestParams key:PATCH_NAME_PARAM_NAME value:name];
+    [self appendIfNotNilToRequestParams:requestParams key:PATCH_DESCRIPTION_PARAM_NAME value:description];
+    [self appendIfNotNilToRequestParams:requestParams key:PATCH_IS_HIDDEN_PARAM_NAME value:isHidden];
+    
     [httpSessionManager POST:url.absoluteString parameters:requestParams constructingBodyWithBlock:^(id <AFMultipartFormData> formData) {
-        if (fileData != nil && filename != nil) {
-            NSLog(@"updatePatch - appending form data");
-            [formData appendPartWithFileData:fileData
-                                        name:FILE_DATA_PARAM_NAME
-                                    fileName:filename
-                                    mimeType:FILE_DATA_MIME_TYPE];
-        }
+        [self appendFormData:formData patchData:patchData extraData:extraData];
     } progress:nil success:^(NSURLSessionDataTask *task, id responseObject) {
         NSLog(@"updatePatch - success: %@", responseObject);
         if ([self responseOk:responseObject]) {
@@ -488,8 +491,13 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     }];
 }
 
-- (void)uploadPatch:(NSString *)patchName description:(NSString *)description parent:(NSInteger)parentId
-           filename:(NSString *)filename fileData:(NSData *)fileData callback:(CreatePatchCallback)callback {
+- (void)uploadPatch:(NSString *)patchName description:(NSString *)description parent:(NSString *)parentGUID
+          patchData:(NSData *)patchData extraMetaData:(NSData *)extraData callback:(CreatePatchCallback)callback {
+    [self uploadPatch:patchName description:description parent:parentGUID hidden:nil patchData:patchData extraMetaData:extraData callback:callback];
+}
+
+- (void)uploadPatch:(NSString *)patchName description:(NSString *)description parent:(NSString *)parentGUID hidden:(NSNumber *)isHidden
+        patchData:(NSData *)patchData extraMetaData:(NSData *)extraData callback:(CreatePatchCallback)callback {
     // If the user is not logged in, fail now because not being logged in means you cannot update a patch
     if (![self isLoggedIn]) {
         NSLog(@"uploadPatch - no user is currently logged in");
@@ -503,17 +511,10 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     
     NSMutableDictionary *requestParams = [self getCurrentUserAuthParamsDictionary];
 
-    if (patchName != nil) {
-        requestParams[PATCH_NAME_PARAM_NAME] = patchName;
-    }
-
-    if (description != nil) {
-        requestParams[PATCH_DESCRIPTION_PARAM_NAME] = description;
-    }
-
-    if (parentId >= 0) {
-        requestParams[PATCH_PARENT_ID_PARAM_NAME] = @(parentId);
-    }
+    [self appendIfNotNilToRequestParams:requestParams key:PATCH_NAME_PARAM_NAME value:patchName];
+    [self appendIfNotNilToRequestParams:requestParams key:PATCH_DESCRIPTION_PARAM_NAME value:description];
+    [self appendIfNotNilToRequestParams:requestParams key:PATCH_PARENT_GUID_PARAM_NAME value:parentGUID];
+    [self appendIfNotNilToRequestParams:requestParams key:PATCH_IS_HIDDEN_PARAM_NAME value:isHidden];
 
     requestParams[PATCH_TYPE_PARAM_NAME] = @(sPatchType);
     
@@ -521,10 +522,7 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     [[PatchCache sharedInstance] removeObjectForKey:GET_MY_PATCHES_URL];
 
     [httpSessionManager POST:url.absoluteString parameters:requestParams constructingBodyWithBlock:^(id <AFMultipartFormData> formData) {
-        [formData appendPartWithFileData:fileData
-                                    name:FILE_DATA_PARAM_NAME
-                                fileName:filename
-                                mimeType:FILE_DATA_MIME_TYPE];
+        [self appendFormData:formData patchData:patchData extraData:extraData];
     } progress:nil success:^(NSURLSessionDataTask *task, id responseObject) {
         NSLog(@"uploadPatch - success: %@", responseObject);
         if ([self responseOk:responseObject]) {
@@ -546,7 +544,7 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
         return;
     }
     
-    NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@%ld/", baseUrl, DELETE_PATCH_URL, (long)patch.patchId]];
+    NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@%@/", baseUrl, DELETE_PATCH_URL, patch.guid]];
     
     NSLog(@"deletePatch - url = %@", url.absoluteString);
  
@@ -577,7 +575,7 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     return;
   }
   
-  NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@%ld/", baseUrl, REPORT_PATCH_URL, (long)patch.patchId]];
+  NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@%@/", baseUrl, REPORT_PATCH_URL, patch.guid]];
   
   NSLog(@"reportAbuse - url = %@", url.absoluteString);
   
@@ -600,6 +598,32 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
 }
 
 // Private Helper Methods
+
+- (void)appendIfNotNilToRequestParams:(NSMutableDictionary *)requestParams key:(NSString *)key value:(id)value {
+    if (value != nil) {
+        if ([value isKindOfClass:[NSString class]]) {
+            requestParams[key] = value;
+        } else if ([value isKindOfClass:[NSNumber class]]) {
+            requestParams[key] = [NSString stringWithFormat:@"%d", [value boolValue]];
+        } else {
+            NSLog(@"appendIfNotNilToRequestParams - value for key %@ is of unsupported class", key);
+        }
+    }
+}
+
+- (void)appendFormData:(id<AFMultipartFormData>)formData patchData:(NSData *)patchData extraData:(NSData *)extraData {
+    if (patchData != nil) {
+        NSLog(@"formDataAppendHelper - appending patchData data");
+        [formData appendPartWithFileData:patchData name:PATCH_DATA_PARAM_NAME fileName:@"data"
+                                mimeType:FILE_DATA_MIME_TYPE];
+    }
+    
+    if (extraData != nil) {
+        NSLog(@"formDataAppendHelper - appending extraData data");
+        [formData appendPartWithFileData:extraData name:PATCH_EXTRA_DATA_PARAM_NAME fileName:@"extra_data"
+                                mimeType:FILE_DATA_MIME_TYPE];
+    }
+}
 
 // SHA256 hex digest adapted from: http://stackoverflow.com/a/7520655/265791
 - (NSString *)SHA256hexDigestForData:(NSData *)data {

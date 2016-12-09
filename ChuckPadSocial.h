@@ -30,7 +30,7 @@ typedef void(^GetPatchInfoCallback)(BOOL succeeded, Patch *patch, NSError *error
 
 typedef void(^DeletePatchCallback)(BOOL succeeded, NSError *error);
 
-typedef void(^DownloadPatchResourceCallback)(NSData *patchData, NSError *error);
+typedef void(^DownloadResourceCallback)(NSData *resourceData, NSError *error);
 
 typedef void(^ReportAbuseCallback)(BOOL succeeded, NSError *error);
 
@@ -127,7 +127,7 @@ typedef enum {
 // --- Get Patches API ---
 
 // Gets patch metadata for the given patch id.
-- (void)getPatchInfo:(NSInteger)patchId callback:(GetPatchInfoCallback)callback;
+- (void)getPatchInfo:(NSString *)patchGUID callback:(GetPatchInfoCallback)callback;
 
 // Returns all patches for the currently logged in user.
 - (void)getMyPatches:(GetPatchesCallback)callback;
@@ -145,9 +145,20 @@ typedef enum {
 - (void)getRecentPatches:(GetPatchesCallback)callback;
 
 // Downloads patch resource (i.e. the actual content of the file associated with the patch)
-- (void)downloadPatchResource:(Patch *)patch callback:(DownloadPatchResourceCallback)callback;
+- (void)downloadPatchResource:(Patch *)patch callback:(DownloadResourceCallback)callback;
+
+// Downloads the extra data associated with the patch.
+- (void)downloadPatchExtraData:(Patch *)patch callback:(DownloadResourceCallback)callback;
 
 // --- Create/Modify Patches API ---
+
+// Creates a new patch.
+- (void)uploadPatch:(NSString *)patchName description:(NSString *)description parent:(NSString *)parentGUID
+          patchData:(NSData *)patchData extraMetaData:(NSData *)extraData callback:(CreatePatchCallback)callback;
+
+// Creates a new patch (allows setting hidden flag).
+- (void)uploadPatch:(NSString *)patchName description:(NSString *)description parent:(NSString *)parentGUID hidden:(NSNumber *)isHidden
+          patchData:(NSData *)patchData extraMetaData:(NSData *)extraData callback:(CreatePatchCallback)callback;
 
 // Update method for a patch that allows updating hidden state, patch name, description filename, and patch data. One or,
 // all of these can be set. If updating file data, both name and data parameters should be provided.
@@ -156,11 +167,7 @@ typedef enum {
 // class that allows a boolean to nil. So pass nil to skip changing visibility, 0 to set not hidden, and 1 to set
 // hidden.
 - (void)updatePatch:(Patch *)patch hidden:(NSNumber *)isHidden name:(NSString *)name description:(NSString *)description
-           filename:(NSString *)filename fileData:(NSData *)fileData callback:(UpdatePatchCallback)callback;
-
-// Creates a new patch.
-- (void)uploadPatch:(NSString *)patchName description:(NSString *)description parent:(NSInteger)parentId
-           filename:(NSString *)filename fileData:(NSData *)fileData callback:(CreatePatchCallback)callback;
+          patchData:(NSData *)patchData extraMetaData:(NSData *)extraData callback:(UpdatePatchCallback)callback;
 
 // Deletes the given patch.
 - (void)deletePatch:(Patch *)patch callback:(DeletePatchCallback)callback;

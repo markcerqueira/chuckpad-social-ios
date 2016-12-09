@@ -11,18 +11,18 @@
 
 @interface Patch : NSObject
 
+@property(nonatomic, retain) NSString *guid;
 @property(nonatomic, retain) NSString *name;
 @property(nonatomic, retain) NSString *patchDescription;
-@property(nonatomic, assign) NSInteger patchId;
-@property(nonatomic, assign) NSInteger parentPatchId;
+@property(nonatomic, assign) NSString *parentGUID;
 @property(nonatomic, assign) NSInteger creatorId;
 @property(nonatomic, retain) NSString *creatorUsername;
 @property(nonatomic, assign) NSInteger abuseReportCount;
 @property(nonatomic, assign) BOOL isFeatured;
 @property(nonatomic, assign) BOOL isDocumentation;
 @property(nonatomic, assign) BOOL hidden;
-@property(nonatomic, retain) NSString *filename;
 @property(nonatomic, retain) NSString *resourceUrl;
+@property(nonatomic, retain) NSString *extraResourceUrl;
 
 // These times are in UTC. When first created, createdAt and updatedAt will be equal. As revisions
 // are made, updatedAt will update, but createdAt will never update.
@@ -39,7 +39,7 @@
 
 - (BOOL)hasAnAbuseReport;
 
-- (NSString *)description;
+- (BOOL)hasExtraResource;
 
 // With prefix = NO, "10:50 PM" is returned. With prefix = YES, "at 10:50 PM" is returned; note that
 // "at" prefix is added)
@@ -48,6 +48,5 @@
 - (NSString *)getTimeCreatedWithPrefix:(BOOL)prefix;
 
 @end
-
 
 #endif /* Patch_h */
