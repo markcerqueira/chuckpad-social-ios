@@ -67,6 +67,34 @@ NSString *const CHUCKPAD_SOCIAL_LOG_OUT = @"CHUCKPAD_SOCIAL_LOG_OUT";
 // NSUserDefaults Keys
 NSString *const ENVIRONMENT_KEY = @"ENVIRONMENT_KEY";
 
+// API Param Keys
+NSString *const PARAMS_USERNAME = @"username";
+NSString *const PARAMS_EMAIL = @"email";
+NSString *const PARAMS_PASSWORD = @"password";
+NSString *const PARAMS_USERNAME_OR_EMAIL = @"username_or_email";
+NSString *const PARAMS_NEW_PASSWORD = @"new_password";
+
+NSString *const PATCH_GUID_PARAM_NAME = @"guid";
+NSString *const PATCH_DATA_PARAM_NAME = @"patch_data";
+NSString *const PATCH_EXTRA_DATA_PARAM_NAME = @"patch_extra_data";
+NSString *const PATCH_TYPE_PARAM_NAME = @"patch_type";
+NSString *const PATCH_NAME_PARAM_NAME = @"patch_name";
+NSString *const PATCH_DESCRIPTION_PARAM_NAME = @"patch_description";
+NSString *const PATCH_PARENT_GUID_PARAM_NAME = @"patch_parent_guid";
+NSString *const PATCH_IS_HIDDEN_PARAM_NAME = @"patch_hidden";
+
+NSString *const IS_ABUSE_PARAM_NAME = @"is_abuse";
+
+NSString *const USER_ID_PARAM_KEY = @"user_id";
+NSString *const AUTH_TOKEN_PARAM_KEY = @"auth_token";
+NSString *const EMAIL_PARAM_KEY = @"email";
+NSString *const TYPE_PARAM_KEY = @"type";
+
+NSString *const PARAM_KEY_DIGEST = @"digest";
+NSString *const PARAM_KEY_RANDOM = @"random";
+
+NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
+
 + (void)bootstrapForPatchType:(PatchType)patchType {
     if ((sPatchType != Unconfigured && sPatchType != patchType) || patchType == Unconfigured) {
         [NSException raise:@"ChuckPadSocial already bootstrapped"
@@ -141,19 +169,19 @@ static dispatch_once_t onceToken;
     NSLog(@"createUser - url = %@", url.absoluteString);
     
     NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
-    requestParams[@"user[username]"] = username;
-    requestParams[@"user[email]"] = email;
-    requestParams[@"password"] = password;
+    requestParams[PARAMS_USERNAME] = username;
+    requestParams[PARAMS_EMAIL] = email;
+    requestParams[PARAMS_PASSWORD] = password;
 
-    [httpSessionManager POST:url.absoluteString parameters:requestParams progress:nil
-                     success:^(NSURLSessionDataTask *task, id responseObject) {
-                         NSLog(@"createUser - response: %@", responseObject);
-                         [self processAuthResponse:responseObject callback:callback];
-                     }
-                     failure:^(NSURLSessionDataTask *task, NSError *error) {
-                         NSLog(@"createUser - error: %@", [error localizedDescription]);
-                         callback(false, [self errorMakingNetworkCall:error]);
-                     }];
+    [self POST:url.absoluteString parameters:requestParams progress:nil
+       success:^(NSURLSessionDataTask *task, id responseObject) {
+           NSLog(@"createUser - response: %@", responseObject);
+           [self processAuthResponse:responseObject callback:callback];
+       }
+       failure:^(NSURLSessionDataTask *task, NSError *error) {
+           NSLog(@"createUser - error: %@", [error localizedDescription]);
+           callback(false, [self errorMakingNetworkCall:error]);
+       }];
 }
 
 - (void)logIn:(NSString *)usernameOrEmail password:(NSString *)password callback:(CreateUserCallback)callback {
@@ -172,19 +200,19 @@ static dispatch_once_t onceToken;
     
     // We don't know if the user entered a username or email so we'll send it up to the server as "both" and if we
     // succeed in logging in, the server will let us know what the email and user name is.
-    requestParams[@"username_or_email"] = usernameOrEmail;
+    requestParams[PARAMS_USERNAME_OR_EMAIL] = usernameOrEmail;
     
-    requestParams[@"password"] = password;
+    requestParams[PARAMS_PASSWORD] = password;
 
-    [httpSessionManager POST:url.absoluteString parameters:requestParams progress:nil
-                     success:^(NSURLSessionDataTask *task, id responseObject) {
-                         NSLog(@"logIn - response: %@", responseObject);
-                         [self processAuthResponse:responseObject callback:callback];
-                     }
-                     failure:^(NSURLSessionDataTask *task, NSError *error) {
-                         NSLog(@"logIn - error: %@", [error localizedDescription]);
-                         callback(false, [self errorMakingNetworkCall:error]);
-                     }];
+    [self POST:url.absoluteString parameters:requestParams progress:nil
+       success:^(NSURLSessionDataTask *task, id responseObject) {
+           NSLog(@"logIn - response: %@", responseObject);
+           [self processAuthResponse:responseObject callback:callback];
+       }
+       failure:^(NSURLSessionDataTask *task, NSError *error) {
+           NSLog(@"logIn - error: %@", [error localizedDescription]);
+           callback(false, [self errorMakingNetworkCall:error]);
+       }];
 }
 
 - (void)logOut:(LogOutCallback)callback {
@@ -201,19 +229,19 @@ static dispatch_once_t onceToken;
     
     NSMutableDictionary *requestParams = [self getCurrentUserAuthParamsDictionary];
     
-    [httpSessionManager POST:url.absoluteString parameters:requestParams progress:nil
-                     success:^(NSURLSessionTask *task, id responseObject) {
-                         if ([self responseOk:responseObject]) {
-                             [self localLogOut];
-                             callback(true, nil);
-                         } else {
-                             callback(false, [self errorWithErrorString:ERROR_STRING_LOGGING_OUT]);
-                         }
-                     }
-                     failure:^(NSURLSessionTask *operation, NSError *error) {
-                         NSLog(@"logOut - error: %@", [error localizedDescription]);
-                         callback(false, [self errorMakingNetworkCall:error]);
-                     }];
+    [self POST:url.absoluteString parameters:requestParams progress:nil
+       success:^(NSURLSessionTask *task, id responseObject) {
+           if ([self responseOk:responseObject]) {
+               [self localLogOut];
+               callback(true, nil);
+           } else {
+               callback(false, [self errorWithErrorString:ERROR_STRING_LOGGING_OUT]);
+           }
+       }
+       failure:^(NSURLSessionTask *operation, NSError *error) {
+           NSLog(@"logOut - error: %@", [error localizedDescription]);
+           callback(false, [self errorMakingNetworkCall:error]);
+       }];
 }
 
 - (void)localLogOut {
@@ -231,21 +259,23 @@ static dispatch_once_t onceToken;
     NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@", baseUrl, FORGOT_PASSWORD_URL]];
 
     NSLog(@"forgotPassword - url = %@", url.absoluteString);
-    NSDictionary *requestParams = @{@"username_or_email" : usernameOrEmail};
 
-    [httpSessionManager POST:url.absoluteString parameters:requestParams progress:nil
-                     success:^(NSURLSessionDataTask *task, id responseObject) {
-                         NSLog(@"forgotPassword - success: %@", responseObject);
-                         if ([self responseOk:responseObject]) {
-                             callback(true, nil);
-                         } else {
-                             callback(false, [self errorWithErrorString:[self getErrorMessageFromServiceReply:responseObject]]);
-                         }
-                     }
-                     failure:^(NSURLSessionDataTask *task, NSError *error) {
-                         NSLog(@"forgotPassword - error: %@", [error localizedDescription]);
-                         callback(false, [self errorMakingNetworkCall:error]);
-                     }];
+    NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
+    requestParams[PARAMS_USERNAME_OR_EMAIL] = usernameOrEmail;
+
+    [self POST:url.absoluteString parameters:requestParams progress:nil
+       success:^(NSURLSessionDataTask *task, id responseObject) {
+           NSLog(@"forgotPassword - success: %@", responseObject);
+           if ([self responseOk:responseObject]) {
+               callback(true, nil);
+           } else {
+               callback(false, [self errorWithErrorString:[self getErrorMessageFromServiceReply:responseObject]]);
+           }
+       }
+       failure:^(NSURLSessionDataTask *task, NSError *error) {
+           NSLog(@"forgotPassword - error: %@", [error localizedDescription]);
+           callback(false, [self errorMakingNetworkCall:error]);
+       }];
 }
 
 - (void)changePassword:(NSString *)newPassword callback:(CreateUserCallback)callback {
@@ -260,22 +290,22 @@ static dispatch_once_t onceToken;
     NSLog(@"changedPassword - url = %@", url.absoluteString);
     
     NSMutableDictionary *requestParams = [self getCurrentUserAuthParamsDictionary];
-    requestParams[@"new_password"] = newPassword;
+    requestParams[PARAMS_NEW_PASSWORD] = newPassword;
     
-    [httpSessionManager POST:url.absoluteString parameters:requestParams progress:nil
-                     success:^(NSURLSessionDataTask *task, id responseObject) {
-                         NSLog(@"changedPassword - success: %@", responseObject);
-                         if ([self responseOk:responseObject]) {
-                             // No need to do anything besides notifying caller because our auth token is still valid.
-                             callback(true, nil);
-                         } else {
-                             callback(false, [self errorWithErrorString:[self getErrorMessageFromServiceReply:responseObject]]);
-                         }
-                     }
-                     failure:^(NSURLSessionDataTask *task, NSError *error) {
-                         NSLog(@"changedPassword - error: %@", [error localizedDescription]);
-                         callback(false, [self errorMakingNetworkCall:error]);
-                     }];
+    [self POST:url.absoluteString parameters:requestParams progress:nil
+       success:^(NSURLSessionDataTask *task, id responseObject) {
+           NSLog(@"changedPassword - success: %@", responseObject);
+           if ([self responseOk:responseObject]) {
+               // No need to do anything besides notifying caller because our auth token is still valid.
+               callback(true, nil);
+           } else {
+               callback(false, [self errorWithErrorString:[self getErrorMessageFromServiceReply:responseObject]]);
+           }
+       }
+       failure:^(NSURLSessionDataTask *task, NSError *error) {
+           NSLog(@"changedPassword - error: %@", [error localizedDescription]);
+           callback(false, [self errorMakingNetworkCall:error]);
+       }];
 }
 
 - (void)authSucceededWithUser:(User *)user {
@@ -352,29 +382,29 @@ static dispatch_once_t onceToken;
     // Add currentUser params because if a user has hidden patches in any category we want to return them to the user.
     NSMutableDictionary *requestParams = [self getCurrentUserAuthParamsDictionary];
 
-    [httpSessionManager GET:url.absoluteString parameters:requestParams progress:nil
-                    success:^(NSURLSessionTask *task, id responseObject) {
-                        if ([self responseOk:responseObject]) {
-                            NSMutableArray *patchesArray = [[NSMutableArray alloc] init];                            
-                            for (id object in [self getPatchListFromMessageResponse:responseObject]) {
-                                Patch *patch = [[Patch alloc] initWithDictionary:object];
-                                [patchesArray addObject:patch];
-                            }
-
-                            NSLog(@"@getPatchesInternal - fetched %lu patches", (unsigned long)[patchesArray count]);
-
-                            // Save response to our cache in case we hit this API again soon
-                            [[PatchCache sharedInstance] setObject:patchesArray forKey:urlPath];
-
-                            callback(patchesArray, nil);
-                        } else {
-                            callback(nil, [self errorWithErrorString:ERROR_STRING_ERROR_FETCHING_PATCHES]);
-                        }
-                    }
-                    failure:^(NSURLSessionTask *operation, NSError *error) {
-                        NSLog(@"getPatchesInternal - error: %@", [error localizedDescription]);
-                        callback(nil, [self errorMakingNetworkCall:error]);
-                    }];
+    [self GET:url.absoluteString parameters:requestParams progress:nil
+      success:^(NSURLSessionTask *task, id responseObject) {
+          if ([self responseOk:responseObject]) {
+              NSMutableArray *patchesArray = [[NSMutableArray alloc] init];
+              for (id object in [self getPatchListFromMessageResponse:responseObject]) {
+                  Patch *patch = [[Patch alloc] initWithDictionary:object];
+                  [patchesArray addObject:patch];
+              }
+              
+              NSLog(@"@getPatchesInternal - fetched %lu patches", (unsigned long)[patchesArray count]);
+              
+              // Save response to our cache in case we hit this API again soon
+              [[PatchCache sharedInstance] setObject:patchesArray forKey:urlPath];
+              
+              callback(patchesArray, nil);
+          } else {
+              callback(nil, [self errorWithErrorString:ERROR_STRING_ERROR_FETCHING_PATCHES]);
+          }
+      }
+      failure:^(NSURLSessionTask *operation, NSError *error) {
+          NSLog(@"getPatchesInternal - error: %@", [error localizedDescription]);
+          callback(nil, [self errorMakingNetworkCall:error]);
+      }];
 }
 
 - (void)getPatchInfo:(NSString *)patchGUID callback:(GetPatchInfoCallback)callback {
@@ -384,19 +414,19 @@ static dispatch_once_t onceToken;
 
     // Do not use cache here because we want to ensure we always return fresh metadata.
     
-    [httpSessionManager GET:url.absoluteString parameters:nil progress:nil
-                    success:^(NSURLSessionTask *task, id responseObject) {
-                        if ([self responseOk:responseObject]) {
-                            Patch *patch = [self getPatchFromMessageResponse:responseObject];
-                            callback(YES, patch, nil);
-                        } else {
-                            callback(NO, nil, [self errorWithErrorString:ERROR_STRING_ERROR_FETCHING_PATCHES]);
-                        }
-                    }
-                    failure:^(NSURLSessionTask *operation, NSError *error) {
-                        NSLog(@"getPatchInfo - error: %@", [error localizedDescription]);
-                        callback(NO, nil, [self errorMakingNetworkCall:error]);
-                    }];
+    [self GET:url.absoluteString parameters:nil progress:nil
+      success:^(NSURLSessionTask *task, id responseObject) {
+          if ([self responseOk:responseObject]) {
+              Patch *patch = [self getPatchFromMessageResponse:responseObject];
+              callback(YES, patch, nil);
+          } else {
+              callback(NO, nil, [self errorWithErrorString:ERROR_STRING_ERROR_FETCHING_PATCHES]);
+          }
+      }
+      failure:^(NSURLSessionTask *operation, NSError *error) {
+          NSLog(@"getPatchInfo - error: %@", [error localizedDescription]);
+          callback(NO, nil, [self errorMakingNetworkCall:error]);
+      }];
 }
 
 - (void)downloadPatchResource:(Patch *)patch callback:(DownloadResourceCallback)callback {
@@ -441,19 +471,6 @@ static dispatch_once_t onceToken;
     }] resume];
 }
 
-NSString *const PATCH_GUID_PARAM_NAME = @"patch[guid]";
-NSString *const PATCH_DATA_PARAM_NAME = @"patch[data]";
-NSString *const PATCH_EXTRA_DATA_PARAM_NAME = @"patch[extra_data]";
-NSString *const PATCH_TYPE_PARAM_NAME = @"patch[type]";
-NSString *const PATCH_NAME_PARAM_NAME = @"patch[name]";
-NSString *const PATCH_DESCRIPTION_PARAM_NAME = @"patch[description]";
-NSString *const PATCH_PARENT_GUID_PARAM_NAME = @"patch[parent_guid]";
-NSString *const PATCH_IS_HIDDEN_PARAM_NAME = @"patch[hidden]";
-
-NSString *const IS_ABUSE_PARAM_NAME = @"is_abuse";
-
-NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
-
 - (void)updatePatch:(Patch *)patch hidden:(NSNumber *)isHidden name:(NSString *)name description:(NSString *)description
           patchData:(NSData *)patchData extraMetaData:(NSData *)extraData callback:(UpdatePatchCallback)callback {
     // If the user is not logged in, fail now because not being logged in means you cannot update a patch
@@ -476,7 +493,7 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     [self appendIfNotNilToRequestParams:requestParams key:PATCH_DESCRIPTION_PARAM_NAME value:description];
     [self appendIfNotNilToRequestParams:requestParams key:PATCH_IS_HIDDEN_PARAM_NAME value:isHidden];
     
-    [httpSessionManager POST:url.absoluteString parameters:requestParams constructingBodyWithBlock:^(id <AFMultipartFormData> formData) {
+    [self POST:url.absoluteString parameters:requestParams constructingBodyWithBlock:^(id <AFMultipartFormData> formData) {
         [self appendFormData:formData patchData:patchData extraData:extraData];
     } progress:nil success:^(NSURLSessionDataTask *task, id responseObject) {
         NSLog(@"updatePatch - success: %@", responseObject);
@@ -521,7 +538,7 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     // Flush cache for getting my patches
     [[PatchCache sharedInstance] removeObjectForKey:GET_MY_PATCHES_URL];
 
-    [httpSessionManager POST:url.absoluteString parameters:requestParams constructingBodyWithBlock:^(id <AFMultipartFormData> formData) {
+    [self POST:url.absoluteString parameters:requestParams constructingBodyWithBlock:^(id <AFMultipartFormData> formData) {
         [self appendFormData:formData patchData:patchData extraData:extraData];
     } progress:nil success:^(NSURLSessionDataTask *task, id responseObject) {
         NSLog(@"uploadPatch - success: %@", responseObject);
@@ -552,52 +569,98 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     [[PatchCache sharedInstance] removeObjectForKey:GET_MY_PATCHES_URL];
     [[PatchCache sharedInstance] removeObjectForKey:[NSString stringWithFormat:@"%@%@", [[ChuckPadSocial sharedInstance] getBaseUrl], patch.resourceUrl]];
     
-    [httpSessionManager GET:url.absoluteString parameters:[self getCurrentUserAuthParamsDictionary] progress:nil
-                    success:^(NSURLSessionTask *task, id responseObject) {
-                        NSLog(@"deletePatch - success: %@", responseObject);
-                        if ([self responseOk:responseObject]) {
-                            callback(YES, nil);
-                        } else {
-                            callback(NO, [self errorWithErrorString:[self getErrorMessageFromServiceReply:responseObject]]);
-                        }
-                    }
-                    failure:^(NSURLSessionTask *operation, NSError *error) {
-                        NSLog(@"deletePatch - error: %@", [error localizedDescription]);
-                        callback(NO, [self errorMakingNetworkCall:error]);
-                    }];
+    [self GET:url.absoluteString parameters:[self getCurrentUserAuthParamsDictionary] progress:nil
+      success:^(NSURLSessionTask *task, id responseObject) {
+          NSLog(@"deletePatch - success: %@", responseObject);
+          if ([self responseOk:responseObject]) {
+              callback(YES, nil);
+          } else {
+              callback(NO, [self errorWithErrorString:[self getErrorMessageFromServiceReply:responseObject]]);
+          }
+      }
+      failure:^(NSURLSessionTask *operation, NSError *error) {
+          NSLog(@"deletePatch - error: %@", [error localizedDescription]);
+          callback(NO, [self errorMakingNetworkCall:error]);
+      }];
 }
 
 - (void)reportAbuse:(Patch *)patch isAbuse:(BOOL)isAbuse callback:(ReportAbuseCallback)callback {
-  // If the user is not logged in, fail now because not being logged in means you cannot report an abusive patch
-  if (![self isLoggedIn]) {
-    NSLog(@"reportAbuse - no user is currently logged in");
-    callback(false, [self errorBecauseNotLoggedIn]);
-    return;
-  }
-  
-  NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@%@/", baseUrl, REPORT_PATCH_URL, patch.guid]];
-  
-  NSLog(@"reportAbuse - url = %@", url.absoluteString);
-  
-  NSMutableDictionary *requestParams = [self getCurrentUserAuthParamsDictionary];
-  [requestParams setObject:@(isAbuse) forKey:IS_ABUSE_PARAM_NAME];
+    // If the user is not logged in, fail now because not being logged in means you cannot report an abusive patch
+    if (![self isLoggedIn]) {
+        NSLog(@"reportAbuse - no user is currently logged in");
+        callback(false, [self errorBecauseNotLoggedIn]);
+        return;
+    }
     
-  [httpSessionManager POST:url.absoluteString parameters:requestParams progress:nil
-                  success:^(NSURLSessionTask *task, id responseObject) {
-                    NSLog(@"reportAbuse - success: %@", responseObject);
-                    if ([self responseOk:responseObject]) {
-                      callback(YES, nil);
-                    } else {
-                      callback(NO, [self errorWithErrorString:[self getErrorMessageFromServiceReply:responseObject]]);
-                    }
-                  }
-                  failure:^(NSURLSessionTask *operation, NSError *error) {
-                    NSLog(@"reportAbuse - error: %@", [error localizedDescription]);
-                    callback(NO, [self errorMakingNetworkCall:error]);
-                  }];
+    NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@%@/", baseUrl, REPORT_PATCH_URL, patch.guid]];
+    
+    NSLog(@"reportAbuse - url = %@", url.absoluteString);
+    
+    NSMutableDictionary *requestParams = [self getCurrentUserAuthParamsDictionary];
+    [requestParams setObject:@(isAbuse) forKey:IS_ABUSE_PARAM_NAME];
+    
+    [self POST:url.absoluteString parameters:requestParams progress:nil
+       success:^(NSURLSessionTask *task, id responseObject) {
+           NSLog(@"reportAbuse - success: %@", responseObject);
+           if ([self responseOk:responseObject]) {
+               callback(YES, nil);
+           } else {
+               callback(NO, [self errorWithErrorString:[self getErrorMessageFromServiceReply:responseObject]]);
+           }
+       }
+       failure:^(NSURLSessionTask *operation, NSError *error) {
+           NSLog(@"reportAbuse - error: %@", [error localizedDescription]);
+           callback(NO, [self errorMakingNetworkCall:error]);
+       }];
 }
 
 // Private Helper Methods
+
+- (NSURLSessionDataTask *)POST:(NSString *)URLString
+                    parameters:(NSMutableDictionary *)parameters
+     constructingBodyWithBlock:(void (^)(id <AFMultipartFormData> formData))block
+                      progress:(nullable void (^)(NSProgress * _Nonnull))uploadProgress
+                       success:(void (^)(NSURLSessionDataTask *task, id responseObject))success
+                       failure:(void (^)(NSURLSessionDataTask *task, NSError *error))failure {
+    return [httpSessionManager POST:URLString parameters:[self signedParameters:parameters url:URLString] constructingBodyWithBlock:block progress:uploadProgress success:success failure:failure];
+}
+
+- (NSURLSessionDataTask *)POST:(NSString *)URLString
+                    parameters:(NSMutableDictionary *)parameters
+                      progress:(void (^)(NSProgress * _Nonnull))uploadProgress
+                       success:(void (^)(NSURLSessionDataTask * _Nonnull, id _Nullable))success
+                       failure:(void (^)(NSURLSessionDataTask * _Nullable, NSError * _Nonnull))failure {
+    return [httpSessionManager POST:URLString parameters:[self signedParameters:parameters url:URLString] progress:uploadProgress success:success failure:failure];
+}
+
+- (NSURLSessionDataTask *)GET:(NSString *)URLString
+                   parameters:(NSMutableDictionary *)parameters
+                     progress:(void (^)(NSProgress * _Nonnull))downloadProgress
+                      success:(void (^)(NSURLSessionDataTask * _Nonnull, id _Nullable))success
+                      failure:(void (^)(NSURLSessionDataTask * _Nullable, NSError * _Nonnull))failure {
+    return [httpSessionManager GET:URLString parameters:[self signedParameters:parameters url:URLString] progress:downloadProgress success:success failure:failure];
+}
+
+- (NSDictionary *)signedParameters:(NSMutableDictionary *)parameters url:(NSString *)url {
+    parameters[PARAM_KEY_RANDOM] = [[[NSProcessInfo processInfo] globallyUniqueString] stringByReplacingOccurrencesOfString:@"-" withString:@""];
+    
+    NSMutableDictionary *signedParameters = [[NSMutableDictionary alloc] init];
+    
+    NSArray *sortedKeys = [[parameters allKeys] sortedArrayUsingSelector:@selector(caseInsensitiveCompare:)];
+    
+    NSMutableString *digest = [[NSMutableString alloc] init];
+    
+    for (NSString *key in sortedKeys) {
+        [digest appendString:key];
+        [digest appendFormat:@"%@", parameters[key]];
+        
+        signedParameters[key] = parameters[key];
+    }
+    
+    signedParameters[PARAM_KEY_DIGEST] = [self SHA256hexDigestForData:[digest dataUsingEncoding:NSUTF8StringEncoding]];
+    
+    return signedParameters;
+}
 
 - (void)appendIfNotNilToRequestParams:(NSMutableDictionary *)requestParams key:(NSString *)key value:(id)value {
     if (value != nil) {
@@ -668,11 +731,6 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     NSArray *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
     return json;
 }
-
-NSString *const USER_ID_PARAM_KEY = @"user_id";
-NSString *const AUTH_TOKEN_PARAM_KEY = @"auth_token";
-NSString *const EMAIL_PARAM_KEY = @"email";
-NSString *const TYPE_PARAM_KEY = @"type";
 
 - (NSMutableDictionary *)getCurrentUserAuthParamsDictionary {
     NSMutableDictionary *requestParams = [self getBaseRequestDictionary];
