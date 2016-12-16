@@ -154,6 +154,10 @@ static dispatch_once_t onceToken;
     [self setEnvironment:(Environment) currentEnviroment];
 }
 
+- (BOOL)isLocalEnvironment {
+    return [[NSUserDefaults standardUserDefaults] integerForKey:ENVIRONMENT_KEY] == Local;
+}
+
 // User API
 
 - (void)createUser:(NSString *)username email:(NSString *)email password:(NSString *)password callback:(CreateUserCallback)callback {
@@ -642,7 +646,12 @@ static dispatch_once_t onceToken;
 }
 
 - (NSDictionary *)signedParameters:(NSMutableDictionary *)parameters url:(NSString *)url {
-    parameters[PARAM_KEY_RANDOM] = [[[NSProcessInfo processInfo] globallyUniqueString] stringByReplacingOccurrencesOfString:@"-" withString:@""];
+    if ([self isLocalEnvironment] && overrideRandomValue != nil) {
+        parameters[PARAM_KEY_RANDOM] = overrideRandomValue;
+        overrideRandomValue = nil;
+    } else {
+        parameters[PARAM_KEY_RANDOM] = [[[NSProcessInfo processInfo] globallyUniqueString] stringByReplacingOccurrencesOfString:@"-" withString:@""];
+    }
     
     NSMutableDictionary *signedParameters = [[NSMutableDictionary alloc] init];
     
@@ -657,7 +666,12 @@ static dispatch_once_t onceToken;
         signedParameters[key] = parameters[key];
     }
     
-    signedParameters[PARAM_KEY_DIGEST] = [self SHA256hexDigestForData:[digest dataUsingEncoding:NSUTF8StringEncoding]];
+    if ([self isLocalEnvironment] && overrideDigestValue != nil) {
+        signedParameters[PARAM_KEY_DIGEST] = overrideDigestValue;
+        overrideDigestValue = nil;
+    } else {
+        signedParameters[PARAM_KEY_DIGEST] = [self SHA256hexDigestForData:[digest dataUsingEncoding:NSUTF8StringEncoding]];
+    }
     
     return signedParameters;
 }
@@ -786,6 +800,19 @@ static dispatch_once_t onceToken;
 
 - (NSString *)getErrorMessageFromServiceReply:(id)responseObject {
     return [NSString stringWithUTF8String: [[responseObject objectForKey:@"message"] cStringUsingEncoding:NSUTF8StringEncoding]];
+}
+
+// For unit testing only! Please do not call these methods!
+
+static NSString *overrideRandomValue;
+static NSString *overrideDigestValue;
+
++ (void)overrideRandomValueForNextRequest:(NSString *)randomValue {
+    overrideRandomValue = randomValue;
+}
+
++ (void)overrideDigestValueForNextRequest:(NSString *)digestValue {
+    overrideDigestValue = digestValue;
 }
 
 @end

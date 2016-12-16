@@ -46,6 +46,9 @@ extern NSString *const CHUCKPAD_SOCIAL_LOG_IN;
 // Sent when a user is logged out
 extern NSString *const CHUCKPAD_SOCIAL_LOG_OUT;
 
+// NSUserDefaults Keys
+extern NSString *const ENVIRONMENT_KEY;
+
 // The ChuckPadSocial service can host patches from different applications. This singleton class needs to be
 // bootstrapped via the bootstrapForPatchType method to get and upload the proper patch types.
 typedef enum {
@@ -85,6 +88,9 @@ typedef enum {
 // Rotates through the environments as they are declared in the Environment enum. If called while enviroment is
 // Production the environment switches to Stage. If called on Local, the environment switches to Production.
 - (void)toggleEnvironment;
+
+// Returns YES if ChuckPadSocial is currently pointing to the Local value of the Environment enum.
+- (BOOL)isLocalEnvironment;
 
 // --- User API ---
 

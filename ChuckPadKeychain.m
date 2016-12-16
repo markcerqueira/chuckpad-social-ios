@@ -80,7 +80,7 @@
 }
 
 - (NSString *)getKeyForString:(NSString *)string {
-    return [NSString stringWithFormat:@"%@_%@_%ld", string, [[ChuckPadSocial sharedInstance] getBaseUrl], (long)[[NSUserDefaults standardUserDefaults] integerForKey:@"Environment"]];
+    return [NSString stringWithFormat:@"%@_%@_%ld", string, [[ChuckPadSocial sharedInstance] getBaseUrl], (long)[[NSUserDefaults standardUserDefaults] integerForKey:ENVIRONMENT_KEY]];
 }
 
 // For unit testing only! Please do not call these methods!
@@ -88,6 +88,10 @@
 static User *memoryUser;
 
 + (void)copyKeychainInfoToMemory {
+    if (![[ChuckPadSocial sharedInstance] isLocalEnvironment]) {
+        return;
+    }
+    
     memoryUser = [[User alloc] initWithDictionary:@{@"id" : @([[ChuckPadKeychain sharedInstance] getLoggedInUserId]),
                                                     @"username" : [[ChuckPadKeychain sharedInstance] getLoggedInUserName],
                                                     @"email": [[ChuckPadKeychain sharedInstance] getLoggedInEmail],
@@ -95,6 +99,10 @@ static User *memoryUser;
 }
 
 + (void)copyMemoryInfoToKeychain {
+    if (![[ChuckPadSocial sharedInstance] isLocalEnvironment]) {
+        return;
+    }
+    
     [[ChuckPadKeychain sharedInstance] authSucceededWithUser:memoryUser];
 }
 
