@@ -24,6 +24,9 @@ static PatchType sPatchType = Unconfigured;
     @private NSArray *environmentUrls;
 }
 
+// Version of this client-side SDK. This won't be updated unless there is a client-breaking change in the API.
+NSInteger IOS_SDK_VERSION = 1;
+
 // API Response Code constants
 NSInteger SUCCESS_CODE = 200;
 NSInteger ERROR_CODE = 500;
@@ -92,6 +95,7 @@ NSString *const TYPE_PARAM_KEY = @"type";
 
 NSString *const PARAM_KEY_DIGEST = @"digest";
 NSString *const PARAM_KEY_RANDOM = @"random";
+NSString *const PARAM_VERSION = @"version";
 
 NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
 
@@ -652,6 +656,8 @@ static dispatch_once_t onceToken;
     } else {
         parameters[PARAM_KEY_RANDOM] = [[[NSProcessInfo processInfo] globallyUniqueString] stringByReplacingOccurrencesOfString:@"-" withString:@""];
     }
+    
+    parameters[PARAM_VERSION] = @(IOS_SDK_VERSION);
     
     NSMutableDictionary *signedParameters = [[NSMutableDictionary alloc] init];
     
