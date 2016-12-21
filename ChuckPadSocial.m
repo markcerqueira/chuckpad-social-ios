@@ -90,7 +90,6 @@ NSString *const IS_ABUSE_PARAM_NAME = @"is_abuse";
 
 NSString *const USER_ID_PARAM_KEY = @"user_id";
 NSString *const AUTH_TOKEN_PARAM_KEY = @"auth_token";
-NSString *const EMAIL_PARAM_KEY = @"email";
 NSString *const TYPE_PARAM_KEY = @"type";
 
 NSString *const PARAM_KEY_DIGEST = @"digest";
@@ -758,7 +757,6 @@ static dispatch_once_t onceToken;
     if ([self isLoggedIn]) {
         requestParams[USER_ID_PARAM_KEY] = @([self getLoggedInUserId]);
         requestParams[AUTH_TOKEN_PARAM_KEY] = [self getLoggedInAuthToken];
-        requestParams[EMAIL_PARAM_KEY] = [self getLoggedInEmail];
     }
     
     return requestParams;
