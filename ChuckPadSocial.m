@@ -789,6 +789,10 @@ static dispatch_once_t onceToken;
 }
 
 - (NSError *)errorMakingNetworkCall:(NSError *)error {
+    if (networkErrorCallback != nil) {
+        networkErrorCallback();
+    }
+    
     NSDictionary *details = @{NSLocalizedDescriptionKey : [error localizedDescription]};
     return [NSError errorWithDomain:[error localizedDescription] code:500 userInfo:details];
 }
@@ -811,12 +815,22 @@ static dispatch_once_t onceToken;
 static NSString *overrideRandomValue;
 static NSString *overrideDigestValue;
 
+static void (^networkErrorCallback)(void);
+
 + (void)overrideRandomValueForNextRequest:(NSString *)randomValue {
     overrideRandomValue = randomValue;
 }
 
 + (void)overrideDigestValueForNextRequest:(NSString *)digestValue {
     overrideDigestValue = digestValue;
+}
+
++ (void)setNetworkErrorCallback:(void (^)(void))block {
+    networkErrorCallback = block;
+}
+
++ (void)clearNetworkErrorCallback {
+    networkErrorCallback = nil;
 }
 
 @end
