@@ -62,6 +62,7 @@ NSString *const ERROR_STRING_ERROR_FETCHING_PATCHES = @"There was an error fetch
 NSString *const ERROR_STRING_ERROR_DOWNLOADING_PATCH_RESOURCE = @"There was an error downloading the resource. Please try again later.";
 NSString *const ERROR_STRING_LOGGING_OUT = @"There was an error logging out. Please try again later.";
 NSString *const ERROR_STRING_NO_EXTRA_RESOURCE = @"This patch does not have any extra data associated with it.";
+NSString *const ERROR_STRING_REPORTING_OWN_PATCH = @"You cannot report a patch that belongs to you.";
 
 // NSNotification constants
 NSString *const CHUCKPAD_SOCIAL_LOG_IN = @"CHUCKPAD_SOCIAL_LOG_IN";
@@ -596,6 +597,12 @@ static dispatch_once_t onceToken;
     if (![self isLoggedIn]) {
         NSLog(@"reportAbuse - no user is currently logged in");
         callback(false, [self errorBecauseNotLoggedIn]);
+        return;
+    }
+    
+    if (patch.creatorId == [self getLoggedInUserId]) {
+        NSLog(@"reportAbuse - user attempting to report their own patch as abusive");
+        callback(false, [self errorWithErrorString:ERROR_STRING_REPORTING_OWN_PATCH]);
         return;
     }
     
