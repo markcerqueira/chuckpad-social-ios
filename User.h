@@ -19,8 +19,6 @@
 
 - (User *)initWithDictionary:(NSDictionary *)dictionary;
 
-- (NSString *)description;
-
 @end
 
 #endif /* User_h */

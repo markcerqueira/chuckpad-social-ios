@@ -176,7 +176,7 @@ static dispatch_once_t onceToken;
     
     NSLog(@"createUser - url = %@", url.absoluteString);
     
-    NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
+    NSMutableDictionary *requestParams = [self getBaseRequestDictionary];
     requestParams[PARAMS_USERNAME] = username;
     requestParams[PARAMS_EMAIL] = email;
     requestParams[PARAMS_PASSWORD] = password;
@@ -204,7 +204,7 @@ static dispatch_once_t onceToken;
     
     NSLog(@"logIn - url = %@", url.absoluteString);
     
-    NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
+    NSMutableDictionary *requestParams = [self getBaseRequestDictionary];
     
     // We don't know if the user entered a username or email so we'll send it up to the server as "both" and if we
     // succeed in logging in, the server will let us know what the email and user name is.
@@ -268,7 +268,7 @@ static dispatch_once_t onceToken;
 
     NSLog(@"forgotPassword - url = %@", url.absoluteString);
 
-    NSMutableDictionary *requestParams = [[NSMutableDictionary alloc] init];
+    NSMutableDictionary *requestParams = [self getBaseRequestDictionary];
     requestParams[PARAMS_USERNAME_OR_EMAIL] = usernameOrEmail;
 
     [self POST:url.absoluteString parameters:requestParams progress:nil
@@ -422,7 +422,7 @@ static dispatch_once_t onceToken;
 
     // Do not use cache here because we want to ensure we always return fresh metadata.
     
-    [self GET:url.absoluteString parameters:nil progress:nil
+    [self GET:url.absoluteString parameters:[self getBaseRequestDictionary] progress:nil
       success:^(NSURLSessionTask *task, id responseObject) {
           if ([self responseOk:responseObject]) {
               Patch *patch = [self getPatchFromMessageResponse:responseObject];
