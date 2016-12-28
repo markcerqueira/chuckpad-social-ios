@@ -40,10 +40,11 @@ typedef void(^ForgotPasswordCallback)(BOOL succeeded, NSError *error);
 
 // Notification Constants
 
-// Posted when login (regular login and automatic login following registration) of a user is complete
+// Posted when successful login (regular login and automatic login following registration) of a user is complete.
 extern NSString *const CHUCKPAD_SOCIAL_LOG_IN;
 
-// Sent when a user is logged out
+// Sent when a user is logged out. This can be voluntary (user chose to log out) or involuntary (the user's auth token
+// was revoked).
 extern NSString *const CHUCKPAD_SOCIAL_LOG_OUT;
 
 // NSUserDefaults Keys
@@ -111,11 +112,11 @@ typedef enum {
 // service. The logOut method above is the preferred method of logging out.
 - (void)localLogOut;
 
-// Triggers an email to be sent to the account linked to the given username/password which includes a web link that
+// Triggers an email to be sent to the account linked to the given username/email which includes a web link that
 // allows the user to reset their password.
 - (void)forgotPassword:(NSString *)usernameOrEmail callback:(ForgotPasswordCallback)callback;
 
-// Returns the user id (non-changing, permanent integer identifier) for the currently logged in user.
+// Returns the user id (non-changing, permanent identifier) for the currently logged in user.
 - (NSInteger)getLoggedInUserId;
 
 // Returns the username of the currently logged in user.
@@ -132,13 +133,13 @@ typedef enum {
 
 // --- Get Patches API ---
 
-// Gets patch metadata for the given patch id.
+// Gets patch metadata for the given patch GUID.
 - (void)getPatchInfo:(NSString *)patchGUID callback:(GetPatchInfoCallback)callback;
 
 // Returns all patches for the currently logged in user.
 - (void)getMyPatches:(GetPatchesCallback)callback;
 
-// Returns all patches for the specified user with given id.
+// Returns all patches for the specified user with given user id.
 - (void)getPatchesForUserId:(NSInteger)userId callback:(GetPatchesCallback)callback;
 
 // Returns all patches flagged as documentation.
@@ -150,10 +151,10 @@ typedef enum {
 // Returns recently created patches.
 - (void)getRecentPatches:(GetPatchesCallback)callback;
 
-// Downloads patch resource (i.e. the actual content of the file associated with the patch)
+// Downloads patch resource (i.e. the actual content of the file associated with the patch).
 - (void)downloadPatchResource:(Patch *)patch callback:(DownloadResourceCallback)callback;
 
-// Downloads the extra data associated with the patch.
+// Downloads the extra meta-data associated with the patch.
 - (void)downloadPatchExtraData:(Patch *)patch callback:(DownloadResourceCallback)callback;
 
 // --- Create/Modify Patches API ---
@@ -166,11 +167,11 @@ typedef enum {
 - (void)uploadPatch:(NSString *)patchName description:(NSString *)description parent:(NSString *)parentGUID hidden:(NSNumber *)isHidden
           patchData:(NSData *)patchData extraMetaData:(NSData *)extraData callback:(CreatePatchCallback)callback;
 
-// Update method for a patch that allows updating hidden state, patch name, description filename, and patch data. One or,
-// all of these can be set. If updating file data, both name and data parameters should be provided.
+// Update method for a patch that allows updating hidden state, patch name, description, data, and/or meta-data. If a
+// parameter is left nil, it will be ignored and no changes will be made to that particular field.
 //
 // Why is the hidden param a NSNumber instead of BOOL? Because Objective-C annoyingly enough does not have a Boolean
-// class that allows a boolean to nil. So pass nil to skip changing visibility, 0 to set not hidden, and 1 to set
+// class that allows a boolean to nil. So pass nil to skip changing visibility, @(0) to set not hidden, and @(1) to set
 // hidden.
 - (void)updatePatch:(Patch *)patch hidden:(NSNumber *)isHidden name:(NSString *)name description:(NSString *)description
           patchData:(NSData *)patchData extraMetaData:(NSData *)extraData callback:(UpdatePatchCallback)callback;
