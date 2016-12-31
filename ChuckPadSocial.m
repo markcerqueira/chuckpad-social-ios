@@ -52,6 +52,9 @@ NSString *const UPDATE_PATCH_URL = @"/patch/update/";
 NSString *const DELETE_PATCH_URL = @"/patch/delete/";
 NSString *const REPORT_PATCH_URL = @"/patch/report/";
 
+NSString *const PATCH_VERSIONS_URL = @"/patch/versions/";
+NSString *const PATCH_VERSIONS_DOWNLOAD_URL = @"/patch/versions/download/";
+
 // iOS User Agent Identifier
 NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
 
@@ -106,13 +109,6 @@ NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
     }
     
     sPatchType = patchType;
-}
-
-// DO NOT call this method! This method should ONLY be called from unit tests.
-+ (void)resetSharedInstanceAndBoostrap {
-    sPatchType = Unconfigured;
-    sharedInstance = nil;
-    onceToken = 0;
 }
 
 static ChuckPadSocial *sharedInstance = nil;
@@ -569,7 +565,7 @@ static dispatch_once_t onceToken;
         return;
     }
     
-    NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@%@/", baseUrl, DELETE_PATCH_URL, patch.guid]];
+    NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@%@", baseUrl, DELETE_PATCH_URL, patch.guid]];
     
     NSLog(@"deletePatch - url = %@", url.absoluteString);
  
@@ -606,7 +602,7 @@ static dispatch_once_t onceToken;
         return;
     }
     
-    NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@%@/", baseUrl, REPORT_PATCH_URL, patch.guid]];
+    NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@%@", baseUrl, REPORT_PATCH_URL, patch.guid]];
     
     NSLog(@"reportAbuse - url = %@", url.absoluteString);
     
@@ -626,6 +622,32 @@ static dispatch_once_t onceToken;
            NSLog(@"reportAbuse - error: %@", [error localizedDescription]);
            callback(NO, [self errorMakingNetworkCall:error]);
        }];
+}
+
+- (void)getPatchVersions:(Patch *)patch callback:(GetPatchVersionsCallback)callback {
+    NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@", baseUrl, PATCH_VERSIONS_URL]];
+
+    NSMutableDictionary *requestParams = [self getCurrentUserAuthParamsDictionary];
+    [requestParams setObject:patch.guid forKey:PATCH_GUID_PARAM_NAME];
+    
+    [self GET:url.absoluteString parameters:requestParams progress:nil
+      success:^(NSURLSessionTask *task, id responseObject) {
+          NSLog(@"getPatchVersions - success: %@", responseObject);
+          if ([self responseOk:responseObject]) {
+              callback(YES, [self getPatchVersionsArray:responseObject], nil);
+          } else {
+              callback(NO, nil, [self errorWithErrorString:[self getErrorMessageFromServiceReply:responseObject]]);
+          }
+      }
+      failure:^(NSURLSessionTask *operation, NSError *error) {
+          NSLog(@"getPatchVersions - error: %@", [error localizedDescription]);
+          callback(NO, nil, [self errorMakingNetworkCall:error]);
+      }];
+}
+
+- (void)downloadPatchVersion:(Patch *)patch version:(NSInteger)version callback:(DownloadResourceCallback)callback {
+    NSString *url = [NSString stringWithFormat:@"%@%@%@/%d", baseUrl, PATCH_VERSIONS_DOWNLOAD_URL, patch.guid, version];
+    [self getData:url callback:callback];
 }
 
 // Private Helper Methods
@@ -758,6 +780,18 @@ static dispatch_once_t onceToken;
     return json;
 }
 
+// Returns an array of PatchResource objects containing in the "message" response body
+- (NSArray *)getPatchVersionsArray:(id)responseObject {
+    NSMutableArray *patchVersions = [NSMutableArray new];
+    for (id version in [responseObject objectForKey:@"message"]) {
+        [patchVersions addObject:[[PatchResource alloc] initWithDictionary:version]];
+    }
+    // Sort before returning; put more recent versions at the beginning of the array.
+    return [patchVersions sortedArrayUsingComparator:^NSComparisonResult(id first, id second) {
+        return ((PatchResource*) first).version < ((PatchResource*) second).version;
+    }];
+}
+
 - (NSMutableDictionary *)getCurrentUserAuthParamsDictionary {
     NSMutableDictionary *requestParams = [self getBaseRequestDictionary];
     
@@ -838,6 +872,12 @@ static void (^networkErrorCallback)(void);
 
 + (void)clearNetworkErrorCallback {
     networkErrorCallback = nil;
+}
+
++ (void)resetSharedInstanceAndBoostrap {
+    sPatchType = Unconfigured;
+    sharedInstance = nil;
+    onceToken = 0;
 }
 
 @end

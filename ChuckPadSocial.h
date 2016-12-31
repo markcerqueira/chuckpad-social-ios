@@ -12,6 +12,7 @@
 #import "ChuckPadKeychain.h"
 #import "Patch.h"
 #import "PatchCache.h"
+#import "PatchResource.h"
 #import "User.h"
 
 #import "NSDate+Helper.h"
@@ -37,6 +38,10 @@ typedef void(^ReportAbuseCallback)(BOOL succeeded, NSError *error);
 typedef void(^LogOutCallback)(BOOL succeeded, NSError *error);
 
 typedef void(^ForgotPasswordCallback)(BOOL succeeded, NSError *error);
+
+// An NSArray of PatchResource objects is returned in this callback with more recent versions (i.e. higher version
+// numbers) are at the front (e.g. the most recent version is index 0, second most recent is index 1, etc).
+typedef void(^GetPatchVersionsCallback)(BOOL succeeded, NSArray *versions, NSError *error);
 
 // Notification Constants
 
@@ -182,6 +187,17 @@ typedef enum {
 // --- Patch Abuse API ---
 
 - (void)reportAbuse:(Patch *)patch isAbuse:(BOOL)isAbuse callback:(ReportAbuseCallback)callback;
+
+// --- Versioning API ---
+
+// Gets a list of all versions for the given patch. See the type definition for GetPatchVersionsCallback above to
+// learn about how resource version data is returned in the callback.
+- (void)getPatchVersions:(Patch *)patch callback:(GetPatchVersionsCallback)callback;
+
+// Downloads patch data from the revision specified in the version parameter. The version parameter should normally be
+// pulled directly from the PatchResource objects returned in the GetPatchVersionsCallback when calling the
+// getPatchVersions method.
+- (void)downloadPatchVersion:(Patch *)patch version:(NSInteger)version callback:(DownloadResourceCallback)callback;
 
 @end
 
