@@ -21,6 +21,7 @@
 @property(nonatomic, assign) BOOL isFeatured;
 @property(nonatomic, assign) BOOL isDocumentation;
 @property(nonatomic, assign) BOOL hidden;
+@property(nonatomic, assign) NSInteger revision;
 @property(nonatomic, retain) NSString *resourceUrl;
 @property(nonatomic, retain) NSString *extraResourceUrl;
 

@@ -39,6 +39,7 @@ static NSDateFormatter *dateFormatter;
         self.updatedAt = [dateFormatter dateFromString:dictionary[@"updated_at"]];
         self.downloadCount = [dictionary[@"download_count"] integerValue];
         self.parentGUID = [self safeGetStringForKey:@"parent_guid" fromDictionary:dictionary];
+        self.revision = [dictionary[@"revision"] integerValue];
         self.extraResourceUrl = [self safeGetStringForKey:@"extra_resource" fromDictionary:dictionary];
     }
 
@@ -70,6 +71,7 @@ static NSDateFormatter *dateFormatter;
               @"updated_at" : [dateFormatter stringFromDate:self.updatedAt],
               @"download_count" : @(self.downloadCount),
               @"parent_guid" : self.parentGUID,
+              @"revision" : @(self.revision),
               @"extra_resource" : self.extraResourceUrl };
 }
 
