@@ -89,6 +89,8 @@ NSString *const PATCH_NAME_PARAM_NAME = @"patch_name";
 NSString *const PATCH_DESCRIPTION_PARAM_NAME = @"patch_description";
 NSString *const PATCH_PARENT_GUID_PARAM_NAME = @"patch_parent_guid";
 NSString *const PATCH_IS_HIDDEN_PARAM_NAME = @"patch_hidden";
+NSString *const PATCH_LATITUDE_PARAM_NAME = @"patch_latitude";
+NSString *const PATCH_LONGITUDE_PARAM_NAME = @"patch_longitude";
 
 NSString *const IS_ABUSE_PARAM_NAME = @"is_abuse";
 
@@ -512,13 +514,66 @@ static dispatch_once_t onceToken;
     }];
 }
 
+- (void)updatePatch:(Patch *)patch latitude:(NSNumber *)lat longitude:(NSNumber *)lng callback:(UpdatePatchCallback)callback {
+    // If the user is not logged in, fail now because not being logged in means you cannot update a patch
+    if (![self isLoggedIn]) {
+        NSLog(@"updatePatch - no user is currently logged in");
+        callback(false, nil, [self errorBecauseNotLoggedIn]);
+        return;
+    }
+    
+    // Flush cache for getting my patches
+    [[PatchCache sharedInstance] removeObjectForKey:GET_MY_PATCHES_URL];
+    
+    NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@", baseUrl, UPDATE_PATCH_URL]];
+    
+    NSMutableDictionary *requestParams = [self getCurrentUserAuthParamsDictionary];
+    
+    requestParams[PATCH_GUID_PARAM_NAME] = [NSString stringWithFormat:@"%@", patch.guid];
+    
+    if (lat == nil && lng == nil) {
+        requestParams[PATCH_LATITUDE_PARAM_NAME] = @"";
+        requestParams[PATCH_LONGITUDE_PARAM_NAME] = @"";
+    } else {
+        requestParams[PATCH_LATITUDE_PARAM_NAME] = lat;
+        requestParams[PATCH_LONGITUDE_PARAM_NAME] = lng;
+    }
+    
+    [self POST:url.absoluteString parameters:requestParams  progress:nil
+       success:^(NSURLSessionDataTask *task, id responseObject) {
+           NSLog(@"updatePatch - success: %@", responseObject);
+           if ([self responseOk:responseObject]) {
+               callback(true, [self getPatchFromMessageResponse:responseObject], nil);
+           } else {
+               callback(false, nil, [self errorWithErrorString:[self getErrorMessageFromServiceReply:responseObject]]);
+           }
+       } failure:^(NSURLSessionDataTask *task, NSError *error) {
+           NSLog(@"updatePatch - error: %@", [error localizedDescription]);
+           callback(false, nil, [self errorMakingNetworkCall:error]);
+       }];
+}
+
 - (void)uploadPatch:(NSString *)patchName description:(NSString *)description parent:(NSString *)parentGUID
           patchData:(NSData *)patchData extraMetaData:(NSData *)extraData callback:(CreatePatchCallback)callback {
-    [self uploadPatch:patchName description:description parent:parentGUID hidden:nil patchData:patchData extraMetaData:extraData callback:callback];
+    [self uploadPatch:patchName description:description parent:parentGUID hidden:nil latitude:nil longitude:nil
+          patchData:patchData extraMetaData:extraData callback:callback];
+}
+
+- (void)uploadPatch:(NSString *)patchName description:(NSString *)description latitude:(NSNumber *)lat longitude:(NSNumber *)lng
+          patchData:(NSData *)patchData extraMetaData:(NSData *)extraData callback:(CreatePatchCallback)callback {
+    [self uploadPatch:patchName description:description parent:nil hidden:nil latitude:lat longitude:lng
+          patchData:patchData extraMetaData:extraData callback:callback];
 }
 
 - (void)uploadPatch:(NSString *)patchName description:(NSString *)description parent:(NSString *)parentGUID hidden:(NSNumber *)isHidden
-        patchData:(NSData *)patchData extraMetaData:(NSData *)extraData callback:(CreatePatchCallback)callback {
+          patchData:(NSData *)patchData extraMetaData:(NSData *)extraData callback:(CreatePatchCallback)callback {
+    [self uploadPatch:patchName description:description parent:parentGUID hidden:isHidden latitude:nil longitude:nil
+          patchData:patchData extraMetaData:extraData callback:callback];
+}
+
+- (void)uploadPatch:(NSString *)patchName description:(NSString *)description parent:(NSString *)parentGUID
+        hidden:(NSNumber *)isHidden latitude:(NSNumber *)lat longitude:(NSNumber *)lng patchData:(NSData *)patchData
+        extraMetaData:(NSData *)extraData callback:(CreatePatchCallback)callback {
     // If the user is not logged in, fail now because not being logged in means you cannot update a patch
     if (![self isLoggedIn]) {
         NSLog(@"uploadPatch - no user is currently logged in");
@@ -539,6 +594,11 @@ static dispatch_once_t onceToken;
 
     requestParams[PATCH_TYPE_PARAM_NAME] = @(sPatchType);
     
+    if (lat != nil && lng != nil) {
+        requestParams[PATCH_LATITUDE_PARAM_NAME] = @(lat.floatValue);
+        requestParams[PATCH_LONGITUDE_PARAM_NAME] = @(lng.floatValue);
+    }
+
     // Flush cache for getting my patches
     [[PatchCache sharedInstance] removeObjectForKey:GET_MY_PATCHES_URL];
 
@@ -646,7 +706,7 @@ static dispatch_once_t onceToken;
 }
 
 - (void)downloadPatchVersion:(Patch *)patch version:(NSInteger)version callback:(DownloadResourceCallback)callback {
-    NSString *url = [NSString stringWithFormat:@"%@%@%@/%d", baseUrl, PATCH_VERSIONS_DOWNLOAD_URL, patch.guid, version];
+    NSString *url = [NSString stringWithFormat:@"%@%@%@/%ld", baseUrl, PATCH_VERSIONS_DOWNLOAD_URL, patch.guid, (long)version];
     [self getData:url callback:callback];
 }
 

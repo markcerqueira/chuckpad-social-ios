@@ -21,6 +21,8 @@
 @property(nonatomic, assign) BOOL isFeatured;
 @property(nonatomic, assign) BOOL isDocumentation;
 @property(nonatomic, assign) BOOL hidden;
+@property(nonatomic, retain) NSNumber *latitude;
+@property(nonatomic, retain) NSNumber *longitude;
 @property(nonatomic, assign) NSInteger revision;
 @property(nonatomic, retain) NSString *resourceUrl;
 @property(nonatomic, retain) NSString *extraResourceUrl;
@@ -41,6 +43,8 @@
 - (BOOL)hasAnAbuseReport;
 
 - (BOOL)hasExtraResource;
+
+- (BOOL)hasLocation;
 
 // With prefix = NO, "10:50 PM" is returned. With prefix = YES, "at 10:50 PM" is returned; note that
 // "at" prefix is added)

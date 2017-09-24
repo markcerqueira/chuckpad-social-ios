@@ -168,6 +168,10 @@ typedef enum {
 - (void)uploadPatch:(NSString *)patchName description:(NSString *)description parent:(NSString *)parentGUID
           patchData:(NSData *)patchData extraMetaData:(NSData *)extraData callback:(CreatePatchCallback)callback;
 
+// Creates a new patch (allows setting a location via latitude/longitude).
+- (void)uploadPatch:(NSString *)patchName description:(NSString *)description latitude:(NSNumber *)lat longitude:(NSNumber *)lng
+          patchData:(NSData *)patchData extraMetaData:(NSData *)extraData callback:(CreatePatchCallback)callback;
+
 // Creates a new patch (allows setting hidden flag).
 - (void)uploadPatch:(NSString *)patchName description:(NSString *)description parent:(NSString *)parentGUID hidden:(NSNumber *)isHidden
           patchData:(NSData *)patchData extraMetaData:(NSData *)extraData callback:(CreatePatchCallback)callback;
@@ -180,6 +184,9 @@ typedef enum {
 // hidden.
 - (void)updatePatch:(Patch *)patch hidden:(NSNumber *)isHidden name:(NSString *)name description:(NSString *)description
           patchData:(NSData *)patchData extraMetaData:(NSData *)extraData callback:(UpdatePatchCallback)callback;
+
+// Update method that allows changing the location. Setting the latitude or longitude to nil clears it from a patch.
+- (void)updatePatch:(Patch *)patch latitude:(NSNumber *)lat longitude:(NSNumber *)lng callback:(UpdatePatchCallback)callback;
 
 // Deletes the given patch.
 - (void)deletePatch:(Patch *)patch callback:(DeletePatchCallback)callback;

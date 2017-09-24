@@ -20,10 +20,10 @@ static NSDateFormatter *dateFormatter;
     // http://stackoverflow.com/a/26803370/265791
     // http://stackoverflow.com/a/9132422/265791
     if (dateFormatter == nil) {
-        dateFormatter = [[NSDateFormatter alloc] init];
+        dateFormatter = [NSDateFormatter new];
         [dateFormatter setDateFormat:@"yyyy-MM-dd HH:mm:ss"];
     }
-    
+
     if (self = [super init]) {
         self.guid = dictionary[@"guid"];
         self.name = dictionary[@"name"];
@@ -31,6 +31,8 @@ static NSDateFormatter *dateFormatter;
         self.isFeatured = [dictionary[@"featured"] boolValue];
         self.isDocumentation = [dictionary[@"documentation"] boolValue];
         self.hidden = [dictionary[@"hidden"] boolValue];
+        self.latitude = [self safeGetNumberForKey:@"latitude" fromDictionary:dictionary];
+        self.longitude = [self safeGetNumberForKey:@"longitude" fromDictionary:dictionary];
         self.creatorId = [dictionary[@"creator_id"] integerValue];
         self.creatorUsername = dictionary[@"creator_username"];
         self.abuseReportCount = [dictionary[@"abuse_count"] integerValue];
@@ -56,6 +58,14 @@ static NSDateFormatter *dateFormatter;
     }
 }
 
+- (NSNumber *)safeGetNumberForKey:(NSString *)key fromDictionary:(NSDictionary *)dictionary {
+    if (dictionary[key] != nil && dictionary[key] != [NSNull null] && ![dictionary[key] isEqualToString:@""]) {
+        return [NSNumber numberWithFloat:[dictionary[key] intValue]];
+    } else {
+        return nil;
+    }
+}
+
 - (NSDictionary *)asDictionary {
     return @{ @"guid" : self.guid,
               @"name" : self.name,
@@ -63,6 +73,8 @@ static NSDateFormatter *dateFormatter;
               @"featured" : @(self.isFeatured),
               @"documentation" : @(self.isDocumentation),
               @"hidden" : @(self.hidden),
+              @"latitude" : self.latitude ?: [NSNull null],
+              @"longitude" : self.longitude ?: [NSNull null],
               @"creator_id" : @(self.creatorId),
               @"creator_username" : self.creatorUsername,
               @"abuse_count" : @(self.abuseReportCount),
@@ -101,6 +113,30 @@ static NSDateFormatter *dateFormatter;
     return [self.extraResourceUrl length] > 0;
 }
 
++ (BOOL)isLocationSet:(Patch *)patch {
+    return patch.latitude != nil && patch.longitude != nil;
+}
+
+- (BOOL)locationIsEqual:(Patch *)other {
+    BOOL locationIsEqual = YES;
+    
+    BOOL selfLocationIsSet = [Patch isLocationSet:self];
+    BOOL otherLocationIsSet = [Patch isLocationSet:other];
+
+    locationIsEqual &= selfLocationIsSet == otherLocationIsSet;
+    
+    if (selfLocationIsSet) {
+        locationIsEqual &= self.latitude.intValue == other.latitude.intValue;
+        locationIsEqual &= self.longitude.intValue == other.longitude.intValue;
+    }
+
+    return locationIsEqual;
+}
+
+- (BOOL)hasLocation {
+    return self.latitude != nil && self.longitude != nil;
+}
+
 - (BOOL)isEqual:(id)object {
     if (![object isKindOfClass:self.class]) {
         return NO;
@@ -117,7 +153,8 @@ static NSDateFormatter *dateFormatter;
     areEqual &= [self.createdAt isEqual:other.createdAt] && [self.updatedAt isEqual:other.updatedAt];
     areEqual &= self.downloadCount == other.downloadCount && [self.parentGUID isEqualToString:other.parentGUID];
     areEqual &= [self.extraResourceUrl isEqualToString:other.extraResourceUrl] && self.abuseReportCount == other.abuseReportCount;
-    
+    areEqual &= [self locationIsEqual:other];
+
     return areEqual;
 }
 
