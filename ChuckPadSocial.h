@@ -162,6 +162,11 @@ typedef enum {
 // Downloads the extra meta-data associated with the patch.
 - (void)downloadPatchExtraData:(Patch *)patch callback:(DownloadResourceCallback)callback;
 
+// --- World Patches API ---
+
+// Returns a variety of patches from around the world (based on their latitutde/longitude when uploaded).
+- (void)getWorldPatches:(GetPatchesCallback)callback;
+
 // --- Create/Modify Patches API ---
 
 // Creates a new patch.

@@ -47,6 +47,8 @@ NSString *const GET_MY_PATCHES_URL = @"/patch/my";
 NSString *const GET_PATCHES_FOR_USER_URL = @"/patch/user";
 NSString *const GET_SINGLE_PATCH_INFO = @"/patch/info";
 
+NSString *const GET_WORLD_PATCHES = @"/patch/world";
+
 NSString *const CREATE_PATCH_URL = @"/patch/create/";
 NSString *const UPDATE_PATCH_URL = @"/patch/update/";
 NSString *const DELETE_PATCH_URL = @"/patch/delete/";
@@ -409,6 +411,30 @@ static dispatch_once_t onceToken;
       }
       failure:^(NSURLSessionTask *operation, NSError *error) {
           NSLog(@"getPatchesInternal - error: %@", [error localizedDescription]);
+          callback(nil, [self errorMakingNetworkCall:error]);
+      }];
+}
+
+- (void)getWorldPatches:(GetPatchesCallback)callback {
+    NSString *url = [NSString stringWithFormat:@"%@%@", [[ChuckPadSocial sharedInstance] getBaseUrl], GET_WORLD_PATCHES];
+    
+    NSMutableDictionary *requestParams = [self getBaseRequestDictionary];
+
+    [self GET:url parameters:requestParams progress:nil
+      success:^(NSURLSessionTask *task, id responseObject) {
+          if ([self responseOk:responseObject]) {
+              NSMutableArray *patchesArray = [[NSMutableArray alloc] init];
+              for (id object in [self getPatchListFromMessageResponse:responseObject]) {
+                  Patch *patch = [[Patch alloc] initWithDictionary:object];
+                  [patchesArray addObject:patch];
+              }
+              callback(patchesArray, nil);
+          } else {
+              callback(nil, [self errorWithErrorString:ERROR_STRING_ERROR_FETCHING_PATCHES]);
+          }
+      }
+      failure:^(NSURLSessionTask *operation, NSError *error) {
+          NSLog(@"getWorldPatches - error: %@", [error localizedDescription]);
           callback(nil, [self errorMakingNetworkCall:error]);
       }];
 }
