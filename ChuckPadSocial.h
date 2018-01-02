@@ -8,7 +8,8 @@
 #define ChuckPadSocial_h
 
 #import <Foundation/Foundation.h>
-
+#import <PubNub/PubNub.h>
+ 
 #import "ChuckPadKeychain.h"
 #import "Patch.h"
 #import "PatchCache.h"
