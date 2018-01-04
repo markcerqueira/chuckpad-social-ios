@@ -138,6 +138,8 @@ static dispatch_once_t onceToken;
     baseUrl = environmentUrls[[[NSUserDefaults standardUserDefaults] integerForKey:ENVIRONMENT_KEY]];
 }
 
+#pragma mark - Environment
+
 - (NSString *)getBaseUrl {
     return baseUrl;
 }
@@ -162,7 +164,7 @@ static dispatch_once_t onceToken;
     return [[NSUserDefaults standardUserDefaults] integerForKey:ENVIRONMENT_KEY] == Local;
 }
 
-// User API
+#pragma mark - User API
 
 - (void)createUser:(NSString *)username email:(NSString *)email password:(NSString *)password callback:(CreateUserCallback)callback {
     // If a user is already logged in, do not allow creating another user
@@ -326,6 +328,8 @@ static dispatch_once_t onceToken;
     [[PatchCache sharedInstance] removeAllObjects];
 }
 
+#pragma mark - Current User Info
+
 - (NSString *)getLoggedInUserName {
     return [[ChuckPadKeychain sharedInstance] getLoggedInUserName];
 }
@@ -346,7 +350,7 @@ static dispatch_once_t onceToken;
     return [[ChuckPadKeychain sharedInstance] isLoggedIn];
 }
 
-// Patches API
+#pragma mark - Patches API - Fetching/Downloading
 
 - (void)getMyPatches:(GetPatchesCallback)callback {
     // If the user is not logged in, fail now
@@ -502,6 +506,8 @@ static dispatch_once_t onceToken;
         }
     }] resume];
 }
+
+#pragma mark - Patches API - Creating/Updating/Deleting
 
 - (void)updatePatch:(Patch *)patch hidden:(NSNumber *)isHidden name:(NSString *)name description:(NSString *)description
           patchData:(NSData *)patchData extraMetaData:(NSData *)extraData callback:(UpdatePatchCallback)callback {
@@ -674,6 +680,8 @@ static dispatch_once_t onceToken;
       }];
 }
 
+#pragma mark - Patch Reporting API
+
 - (void)reportAbuse:(Patch *)patch isAbuse:(BOOL)isAbuse callback:(ReportAbuseCallback)callback {
     // If the user is not logged in, fail now because not being logged in means you cannot report an abusive patch
     if (![self isLoggedIn]) {
@@ -710,6 +718,8 @@ static dispatch_once_t onceToken;
        }];
 }
 
+#pragma mark - Patch Versioning API
+
 - (void)getPatchVersions:(Patch *)patch callback:(GetPatchVersionsCallback)callback {
     NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@", baseUrl, PATCH_VERSIONS_URL]];
 
@@ -736,7 +746,7 @@ static dispatch_once_t onceToken;
     [self getData:url callback:callback];
 }
 
-// Private Helper Methods
+#pragma mark - Private Helper Methods
 
 - (NSURLSessionDataTask *)POST:(NSString *)URLString
                     parameters:(NSMutableDictionary *)parameters
@@ -826,12 +836,11 @@ static dispatch_once_t onceToken;
 - (NSString *)SHA256hexDigestForData:(NSData *)data {
     NSMutableData *sha256Out = [NSMutableData dataWithLength:CC_SHA256_DIGEST_LENGTH];
     CC_SHA256(data.bytes, (CC_LONG)data.length, sha256Out.mutableBytes);
-    
     NSUInteger capacity = sha256Out.length * 2;
     NSMutableString *hexDigestString = [NSMutableString stringWithCapacity:capacity];
     const unsigned char *buf = sha256Out.bytes;
     NSInteger i;
-    for (i=0; i<sha256Out.length; ++i) {
+    for (i = 0; i < sha256Out.length; ++i) {
         [hexDigestString appendFormat:@"%02X", buf[i]];
     }
     return hexDigestString;
@@ -936,6 +945,8 @@ static dispatch_once_t onceToken;
 - (NSString *)getErrorMessageFromServiceReply:(id)responseObject {
     return [NSString stringWithUTF8String: [[responseObject objectForKey:@"message"] cStringUsingEncoding:NSUTF8StringEncoding]];
 }
+
+#pragma mark - Unit Testing Helpers
 
 // For unit testing only! Please do not call these methods!
 
