@@ -11,6 +11,7 @@
 #import <PubNub/PubNub.h>
  
 #import "ChuckPadKeychain.h"
+#import "LiveSession.h"
 #import "Patch.h"
 #import "PatchCache.h"
 #import "PatchResource.h"
@@ -43,6 +44,10 @@ typedef void(^ForgotPasswordCallback)(BOOL succeeded, NSError *error);
 // An NSArray of PatchResource objects is returned in this callback with more recent versions (i.e. higher version
 // numbers) are at the front (e.g. the most recent version is index 0, second most recent is index 1, etc).
 typedef void(^GetPatchVersionsCallback)(BOOL succeeded, NSArray *versions, NSError *error);
+
+typedef void(^CreateLiveSessionCallback)(BOOL succeeded, LiveSession *liveSession, NSError *error);
+
+typedef void(^CloseLiveSessionCallback)(BOOL succeeded, LiveSession *liveSession, NSError *error);
 
 // Notification Constants
 
@@ -82,7 +87,7 @@ typedef enum {
 // Returns the ChuckPadSocial singleton instance.
 + (ChuckPadSocial *)sharedInstance;
 
-// --- Environment ---
+#pragma mark - Environment
 
 // Returns the root URL of the environment API calls will be made against.
 - (NSString *)getBaseUrl;
@@ -99,7 +104,7 @@ typedef enum {
 // Returns YES if ChuckPadSocial is currently pointing to the Local value of the Environment enum.
 - (BOOL)isLocalEnvironment;
 
-// --- User API ---
+#pragma mark - User API
 
 // Registers a new user with the provided parameters. If the callback is called with succeeded = true, the user is
 // considered logged in for subsequent API requests so no login call is needed.
@@ -137,7 +142,7 @@ typedef enum {
 // Returns YES if there is a user currently logged in.
 - (BOOL)isLoggedIn;
 
-// --- Get Patches API ---
+#pragma mark - Get Patches API
 
 // Gets patch metadata for the given patch GUID.
 - (void)getPatchInfo:(NSString *)patchGUID callback:(GetPatchInfoCallback)callback;
@@ -163,12 +168,12 @@ typedef enum {
 // Downloads the extra meta-data associated with the patch.
 - (void)downloadPatchExtraData:(Patch *)patch callback:(DownloadResourceCallback)callback;
 
-// --- World Patches API ---
+#pragma mark - World Patches API
 
 // Returns a variety of patches from around the world (based on their latitutde/longitude when uploaded).
 - (void)getWorldPatches:(GetPatchesCallback)callback;
 
-// --- Create/Modify Patches API ---
+#pragma mark - Create/Modify Patches API
 
 // Creates a new patch.
 - (void)uploadPatch:(NSString *)patchName description:(NSString *)description parent:(NSString *)parentGUID
@@ -197,11 +202,11 @@ typedef enum {
 // Deletes the given patch.
 - (void)deletePatch:(Patch *)patch callback:(DeletePatchCallback)callback;
 
-// --- Patch Abuse API ---
+#pragma mark - Patch Abuse API
 
 - (void)reportAbuse:(Patch *)patch isAbuse:(BOOL)isAbuse callback:(ReportAbuseCallback)callback;
 
-// --- Versioning API ---
+#pragma mark - Versioning API
 
 // Gets a list of all versions for the given patch. See the type definition for GetPatchVersionsCallback above to
 // learn about how resource version data is returned in the callback.
@@ -211,6 +216,14 @@ typedef enum {
 // pulled directly from the PatchResource objects returned in the GetPatchVersionsCallback when calling the
 // getPatchVersions method.
 - (void)downloadPatchVersion:(Patch *)patch version:(NSInteger)version callback:(DownloadResourceCallback)callback;
+
+#pragma mark - Live API
+
+// Creates a new live session.
+- (void)createLiveSession:(NSString *)title callback:(CreateLiveSessionCallback)callback;
+
+// Closes an existing live session.
+- (void)closeLiveSession:(LiveSession *)liveSession callback:(CloseLiveSessionCallback)callback;
 
 @end
 

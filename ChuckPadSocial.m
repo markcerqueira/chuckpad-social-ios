@@ -57,6 +57,9 @@ NSString *const REPORT_PATCH_URL = @"/patch/report/";
 NSString *const PATCH_VERSIONS_URL = @"/patch/versions/";
 NSString *const PATCH_VERSIONS_DOWNLOAD_URL = @"/patch/versions/download/";
 
+NSString *const CREATE_LIVE_SESSION_URL = @"/live/create/";
+NSString *const CLOSE_LIVE_SESSION_URL = @"/live/close/";
+
 // iOS User Agent Identifier
 NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
 
@@ -103,6 +106,10 @@ NSString *const TYPE_PARAM_KEY = @"type";
 NSString *const PARAM_KEY_DIGEST = @"digest";
 NSString *const PARAM_KEY_RANDOM = @"random";
 NSString *const PARAM_VERSION = @"version";
+
+NSString *const LIVE_SESSION_GUID = @"session_guid";
+NSString *const LIVE_SESSION_TYPE = @"session_type";
+NSString *const LIVE_SESSION_TITLE = @"session_title";
 
 NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
 
@@ -746,6 +753,61 @@ static dispatch_once_t onceToken;
     [self getData:url callback:callback];
 }
 
+#pragma mark - Live API
+
+- (void)createLiveSession:(NSString *)title callback:(CreateLiveSessionCallback)callback {
+    // If the user is not logged in, fail now because a live session must have a user who owns it.
+    if (![self isLoggedIn]) {
+        NSLog(@"createLiveSession - no user is currently logged in");
+        callback(false, nil, [self errorBecauseNotLoggedIn]);
+        return;
+    }
+    
+    NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@", baseUrl, CREATE_LIVE_SESSION_URL]];
+    
+    NSMutableDictionary *requestParams = [self getCurrentUserAuthParamsDictionary];
+    requestParams[LIVE_SESSION_TYPE] = @(sPatchType);
+    requestParams[LIVE_SESSION_TITLE] = title;
+    
+    [self POST:url.absoluteString parameters:requestParams constructingBodyWithBlock:nil progress:nil success:^(NSURLSessionDataTask *task, id responseObject) {
+        NSLog(@"createLiveSession - success: %@", responseObject);
+        if ([self responseOk:responseObject]) {
+            callback(true, [self getLiveSessionFromMessageResponse:responseObject], nil);
+        } else {
+            callback(false, nil, [self errorWithErrorString:[self getErrorMessageFromServiceReply:responseObject]]);
+        }
+    } failure:^(NSURLSessionDataTask *task, NSError *error) {
+        NSLog(@"createLiveSession - error: %@", [error localizedDescription]);
+        callback(false, nil, [self errorMakingNetworkCall:error]);
+    }];
+}
+
+- (void)closeLiveSession:(LiveSession *)liveSession callback:(CloseLiveSessionCallback)callback {
+    // If the user is not logged in, fail now because only the authenticated creator can close a live session.
+    if (![self isLoggedIn]) {
+        NSLog(@"closeLiveSession - no user is currently logged in");
+        callback(false, nil, [self errorBecauseNotLoggedIn]);
+        return;
+    }
+    
+    NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@", baseUrl, CLOSE_LIVE_SESSION_URL]];
+
+    NSMutableDictionary *requestParams = [self getCurrentUserAuthParamsDictionary];
+    requestParams[LIVE_SESSION_GUID] = liveSession.sessionGUID;
+    
+    [self POST:url.absoluteString parameters:requestParams constructingBodyWithBlock:nil progress:nil success:^(NSURLSessionDataTask *task, id responseObject) {
+        NSLog(@"closeLiveSession - success: %@", responseObject);
+        if ([self responseOk:responseObject]) {
+            callback(true, [self getLiveSessionFromMessageResponse:responseObject], nil);
+        } else {
+            callback(false, nil, [self errorWithErrorString:[self getErrorMessageFromServiceReply:responseObject]]);
+        }
+    } failure:^(NSURLSessionDataTask *task, NSError *error) {
+        NSLog(@"closeLiveSession - error: %@", [error localizedDescription]);
+        callback(false, nil, [self errorMakingNetworkCall:error]);
+    }];
+}
+
 #pragma mark - Private Helper Methods
 
 - (NSURLSessionDataTask *)POST:(NSString *)URLString
@@ -856,6 +918,8 @@ static dispatch_once_t onceToken;
     }
 }
 
+#pragma mark - Network Response -> Model Mappers
+
 // Constructs a User object from the JSON in the "message" response body
 - (User *)getUserFromMessageResponse:(id)responseObject {
     return [[User alloc] initWithDictionary:[responseObject objectForKey:@"message"]];
@@ -866,6 +930,13 @@ static dispatch_once_t onceToken;
     NSData *data = [[responseObject objectForKey:@"message"] dataUsingEncoding:NSUTF8StringEncoding];
     id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
     return [[Patch alloc] initWithDictionary:json];
+}
+
+// Constructs a LiveSession object from the JSON in the "message" response body
+- (LiveSession *)getLiveSessionFromMessageResponse:(id)responseObject {
+    NSData *data = [[responseObject objectForKey:@"message"] dataUsingEncoding:NSUTF8StringEncoding];
+    id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    return [[LiveSession alloc] initWithDictionary:json];
 }
 
 // Returns a list of JSON blobs contained in the "message" response body
@@ -886,6 +957,8 @@ static dispatch_once_t onceToken;
         return ((PatchResource*) first).version < ((PatchResource*) second).version;
     }];
 }
+
+#pragma mark -
 
 - (NSMutableDictionary *)getCurrentUserAuthParamsDictionary {
     NSMutableDictionary *requestParams = [self getBaseRequestDictionary];
