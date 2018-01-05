@@ -59,6 +59,7 @@ NSString *const PATCH_VERSIONS_DOWNLOAD_URL = @"/patch/versions/download/";
 
 NSString *const CREATE_LIVE_SESSION_URL = @"/live/create/";
 NSString *const CLOSE_LIVE_SESSION_URL = @"/live/close/";
+NSString *const RECENT_CREATED_OPEN_SESSION_URL = @"/live/recent-created/";
 
 // iOS User Agent Identifier
 NSString *const CHUCKPAD_SOCIAL_IOS_USER_AGENT = @"chuckpad-social-ios";
@@ -71,6 +72,7 @@ NSString *const ERROR_STRING_ERROR_DOWNLOADING_PATCH_RESOURCE = @"There was an e
 NSString *const ERROR_STRING_LOGGING_OUT = @"There was an error logging out. Please try again later.";
 NSString *const ERROR_STRING_NO_EXTRA_RESOURCE = @"This patch does not have any extra data associated with it.";
 NSString *const ERROR_STRING_REPORTING_OWN_PATCH = @"You cannot report a patch that belongs to you.";
+NSString *const ERROR_STRING_ERROR_FETCHING_LIVE_SESSIONS = @"There was an error fetching live sessions. Please try again later.";
 
 // NSNotification constants
 NSString *const CHUCKPAD_SOCIAL_LOG_IN = @"CHUCKPAD_SOCIAL_LOG_IN";
@@ -410,7 +412,7 @@ static dispatch_once_t onceToken;
                   [patchesArray addObject:patch];
               }
               
-              NSLog(@"@getPatchesInternal - fetched %lu patches", (unsigned long)[patchesArray count]);
+              NSLog(@"getPatchesInternal - fetched %lu patches", (unsigned long)[patchesArray count]);
               
               // Save response to our cache in case we hit this API again soon
               [[PatchCache sharedInstance] setObject:patchesArray forKey:urlPath];
@@ -806,6 +808,32 @@ static dispatch_once_t onceToken;
         NSLog(@"closeLiveSession - error: %@", [error localizedDescription]);
         callback(false, nil, [self errorMakingNetworkCall:error]);
     }];
+}
+
+- (void)getRecentlyCreatedOpenLiveSessions:(GetLiveSessionsCallback)callback {
+    NSURL *url = [[NSURL alloc] initWithString:[NSString stringWithFormat:@"%@%@", baseUrl, RECENT_CREATED_OPEN_SESSION_URL]];
+    
+    NSMutableDictionary *requestParams = [self getBaseRequestDictionary];
+    
+    [self GET:url.absoluteString parameters:requestParams progress:nil success:^(NSURLSessionTask *task, id responseObject) {
+          if ([self responseOk:responseObject]) {
+              NSMutableArray *liveSessionsArray = [[NSMutableArray alloc] init];
+              for (id object in [self getPatchListFromMessageResponse:responseObject]) {
+                  LiveSession *liveSession = [[LiveSession alloc] initWithDictionary:object];
+                  [liveSessionsArray addObject:liveSession];
+              }
+
+              NSLog(@"closeLiveSession - fetched %lu live sessions", (unsigned long)[liveSessionsArray count]);
+
+              callback(true, liveSessionsArray, nil);
+          } else {
+              callback(false, nil, [self errorWithErrorString:ERROR_STRING_ERROR_FETCHING_LIVE_SESSIONS]);
+          }
+      }
+      failure:^(NSURLSessionTask *operation, NSError *error) {
+          NSLog(@"getRecentlyCreatedOpenLiveSessions - error: %@", [error localizedDescription]);
+          callback(false, nil, [self errorMakingNetworkCall:error]);
+      }];
 }
 
 #pragma mark - Private Helper Methods

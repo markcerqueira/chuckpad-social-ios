@@ -49,6 +49,8 @@ typedef void(^CreateLiveSessionCallback)(BOOL succeeded, LiveSession *liveSessio
 
 typedef void(^CloseLiveSessionCallback)(BOOL succeeded, LiveSession *liveSession, NSError *error);
 
+typedef void(^GetLiveSessionsCallback)(BOOL succeeded, NSArray<LiveSession *> *liveSessionsArray, NSError *error);
+
 // Notification Constants
 
 // Posted when successful login (regular login and automatic login following registration) of a user is complete.
@@ -224,6 +226,9 @@ typedef enum {
 
 // Closes an existing live session.
 - (void)closeLiveSession:(LiveSession *)liveSession callback:(CloseLiveSessionCallback)callback;
+
+// Gets recently created and open live sessions.
+- (void)getRecentlyCreatedOpenLiveSessions:(GetLiveSessionsCallback)callback;
 
 @end
 
