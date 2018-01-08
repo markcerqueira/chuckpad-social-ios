@@ -8,7 +8,6 @@
 #define ChuckPadSocial_h
 
 #import <Foundation/Foundation.h>
-#import <PubNub/PubNub.h>
  
 #import "ChuckPadKeychain.h"
 #import "LiveSession.h"
