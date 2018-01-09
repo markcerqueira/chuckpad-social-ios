@@ -26,14 +26,18 @@ typedef enum {
 
 - (void)chuckPadLive:(ChuckPadLive *)chuckPadLive didReceiveStatus:(LiveStatus)liveStatus;
 
+- (void)chuckPadLive:(ChuckPadLive *)chuckPadLive didReceiveData:(id)data;
+
 @end
 
 @interface ChuckPadLive : NSObject
 
 @property (nonatomic) id<ChuckPadLiveDelegate> delegate;
 
++ (ChuckPadLive *)sharedInstance;
+
 // Returns the ChuckPadLive instance connected to the given LiveSession with callbacks dispatched onto delegate.
-+ (ChuckPadLive *)initWithLiveSession:(LiveSession *)liveSession chuckPadLiveDelegate:(id<ChuckPadLiveDelegate>)delegate;
+- (void)connect:(LiveSession *)liveSession chuckPadLiveDelegate:(id<ChuckPadLiveDelegate>)delegate;
 
 // Publishes data to the Pub/Sub channel.
 - (void)publish:(id)data;

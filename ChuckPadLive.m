@@ -24,33 +24,55 @@
 NSString *const PUBNUB_PUBLISH_KEY = @"pub-c-a2852cba-9aeb-43d4-899f-700a0377bf3c";
 NSString *const PUBNUB_SUBSCRIBE_KEY = @"sub-c-e48357a8-f3dd-11e7-a966-520fb0a815a8";
 
-+ (ChuckPadLive *)initWithLiveSession:(LiveSession *)liveSession chuckPadLiveDelegate:(id<ChuckPadLiveDelegate>)delegate {
-    ChuckPadLive *chuckPadLive = [[ChuckPadLive alloc] init];
-    
-    // Initialize and configure PubNub client instance
-    PNConfiguration *configuration = [PNConfiguration configurationWithPublishKey:PUBNUB_PUBLISH_KEY subscribeKey:PUBNUB_SUBSCRIBE_KEY];
-    configuration.stripMobilePayload = NO;
-        
-    chuckPadLive.client = [PubNub clientWithConfiguration:configuration];
-    chuckPadLive.delegate = delegate;
-    chuckPadLive.liveSession = liveSession;
+static ChuckPadLive *sharedInstance = nil;
+static dispatch_once_t onceToken;
 
-    [chuckPadLive.client addListener:chuckPadLive];
-    [chuckPadLive.client subscribeToChannels:@[liveSession.sessionGUID] withPresence:YES];
++ (ChuckPadLive *)sharedInstance {
+    dispatch_once(&onceToken, ^{
+        sharedInstance = [[ChuckPadLive alloc] init];
+    });
+    return sharedInstance;
+}
+
+- (id)init {
+    self = [super init];
+    if (self) {
+        // Initialize and configure PubNub client instance
+        PNConfiguration *configuration = [PNConfiguration configurationWithPublishKey:PUBNUB_PUBLISH_KEY subscribeKey:PUBNUB_SUBSCRIBE_KEY];
+        configuration.stripMobilePayload = YES;
+        
+        self.client = [PubNub clientWithConfiguration:configuration];
+        
+        [self.client addListener:self];
+    }
+    return self;
+}
+
+- (void)connect:(LiveSession *)liveSession chuckPadLiveDelegate:(id<ChuckPadLiveDelegate>)delegate {
+    if (liveSession == nil || delegate == nil) {
+        NSLog(@"connect - liveSession and/or delegate param is nil. Aborting!");
+        return;
+    }
     
-    return chuckPadLive;
+    self.liveSession = liveSession;
+    self.delegate = delegate;
+
+    [self.client subscribeToChannels:@[liveSession.sessionGUID] withPresence:YES];
 }
 
 - (void)publish:(id)data {
+    if (self.liveSession == nil || self.delegate == nil) {
+        NSLog(@"publish - liveSession and/or delegate property is nil. Aborting!");
+        return;
+    }
+    
     [self.client publish:data toChannel:self.liveSession.sessionGUID withCompletion:^(PNPublishStatus * _Nonnull status) {
         if (!status.isError) {
             // Message successfully published to specified channel.
             NSLog(@"publish - successfully published data: %@", data);
         } else {
-            // Handle message publish error. Check 'category' property to find out possible reason because of which request
-            // did fail. Review 'errorData' property (which has PNErrorData data type) of status object to get additional
-            // information about issue. Request can be resent using: [status retry]
-            NSLog(@"publish - failure publishing data: %@", data);
+            // Message publish error. Request can be resent using: [status retry]
+            NSLog(@"publish - failure (%@) publishing data: %@", status.errorData.information, data);
         }
     }];
 }
@@ -65,31 +87,14 @@ NSString *const PUBNUB_SUBSCRIBE_KEY = @"sub-c-e48357a8-f3dd-11e7-a966-520fb0a81
 
 // Handle new message from one of channels on which client has been subscribed.
 - (void)client:(PubNub *)client didReceiveMessage:(PNMessageResult *)message {
-    // Handle new message stored in message.data.message
-    if (![message.data.channel isEqualToString:message.data.subscription]) {
-        // Message has been received on channel group stored in message.data.subscription.
-    } else {
-        // Message has been received on channel stored in message.data.channel.
-    }
-    
     NSLog(@"didReceiveMessage - %@ on channel %@ at %@", message.data.message, message.data.channel, message.data.timetoken);
+    
+    [self.delegate chuckPadLive:self didReceiveData:message.data.message];
 }
 
 // New presence event handling.
 - (void)client:(PubNub *)client didReceivePresenceEvent:(PNPresenceEventResult *)event {
-    if (![event.data.channel isEqualToString:event.data.subscription]) {
-        // Presence event has been received on channel group stored in event.data.subscription.
-    } else {
-        // Presence event has been received on channel stored in event.data.channel.
-    }
-    
-    if (![event.data.presenceEvent isEqualToString:@"state-change"]) {
-        NSLog(@"%@ \"%@'ed\"\nat: %@ on %@ (Occupancy: %@)", event.data.presence.uuid,
-              event.data.presenceEvent, event.data.presence.timetoken, event.data.channel,
-              event.data.presence.occupancy);
-    } else {
-        NSLog(@"%@ changed state at: %@ on %@ to: %@", event.data.presence.uuid, event.data.presence.timetoken, event.data.channel, event.data.presence.state);
-    }
+
 }
 
 // Handle subscription status change.
