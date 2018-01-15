@@ -31,6 +31,10 @@ static NSDateFormatter *dateFormatter;
         self.occupancy = [dictionary[@"occupancy"] integerValue];
         self.createdAt = [dateFormatter dateFromString:dictionary[@"created_at"]];
         self.lastActive = [dateFormatter dateFromString:dictionary[@"last_active"]];
+        
+        if (dictionary[@"session_data"] != nil) {
+            self.sessionData = [[NSData alloc] initWithBase64EncodedData:dictionary[@"session_data"] options:NSDataBase64DecodingIgnoreUnknownCharacters];
+        }
     }
     
     return self;

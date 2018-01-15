@@ -220,8 +220,8 @@ typedef enum {
 
 #pragma mark - Live API
 
-// Creates a new live session.
-- (void)createLiveSession:(NSString *)title callback:(CreateLiveSessionCallback)callback;
+// Creates a new live session. A string title or arbitrary data (e.g. image) can be associated with the session.
+- (void)createLiveSession:(NSString *)title sessionData:(NSData *)sessionData callback:(CreateLiveSessionCallback)callback;
 
 // Closes an existing live session.
 - (void)closeLiveSession:(LiveSession *)liveSession callback:(CloseLiveSessionCallback)callback;

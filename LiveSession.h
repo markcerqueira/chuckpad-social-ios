@@ -16,6 +16,7 @@
 @property(nonatomic, retain) NSString *creatorUsername;
 @property(nonatomic, assign) NSInteger state;
 @property(nonatomic, assign) NSInteger occupancy;
+@property(nonatomic, retain) NSData *sessionData;
 
 // These times are in UTC. When first created, createdAt and lastActive will be equal. As messages are passed on the
 // associated PubSub channel, lastActive will update but createdAt will never change.

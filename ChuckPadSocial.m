@@ -112,6 +112,7 @@ NSString *const PARAM_VERSION = @"version";
 NSString *const LIVE_SESSION_GUID = @"session_guid";
 NSString *const LIVE_SESSION_TYPE = @"session_type";
 NSString *const LIVE_SESSION_TITLE = @"session_title";
+NSString *const LIVE_SESSION_DATA = @"session_data";
 
 NSString *const FILE_DATA_MIME_TYPE = @"application/octet-stream";
 
@@ -757,7 +758,7 @@ static dispatch_once_t onceToken;
 
 #pragma mark - Live API
 
-- (void)createLiveSession:(NSString *)title callback:(CreateLiveSessionCallback)callback {
+- (void)createLiveSession:(NSString *)title sessionData:(NSData *)sessionData callback:(CreateLiveSessionCallback)callback {
     // If the user is not logged in, fail now because a live session must have a user who owns it.
     if (![self isLoggedIn]) {
         NSLog(@"createLiveSession - no user is currently logged in");
@@ -771,7 +772,13 @@ static dispatch_once_t onceToken;
     requestParams[LIVE_SESSION_TYPE] = @(sPatchType);
     requestParams[LIVE_SESSION_TITLE] = title;
     
-    [self POST:url.absoluteString parameters:requestParams constructingBodyWithBlock:nil progress:nil success:^(NSURLSessionDataTask *task, id responseObject) {
+constructingBodyWithBlock:
+    
+    [self POST:url.absoluteString parameters:requestParams constructingBodyWithBlock:^(id <AFMultipartFormData> formData) {
+        if (sessionData != nil) {
+            [formData appendPartWithFileData:sessionData name:LIVE_SESSION_DATA fileName:@"session_data" mimeType:FILE_DATA_MIME_TYPE];
+        }
+    } progress:nil success:^(NSURLSessionDataTask *task, id responseObject) {
         NSLog(@"createLiveSession - success: %@", responseObject);
         if ([self responseOk:responseObject]) {
             callback(true, [self getLiveSessionFromMessageResponse:responseObject], nil);
